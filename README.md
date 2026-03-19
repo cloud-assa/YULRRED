@@ -284,3 +284,7 @@ For production fund releases, set up Stripe Connect to transfer directly to sell
 
 MIT
 # YULRRED
+
+
+## Deployment Log
+- 2026-03-19 06:21 UTC: Fixed SpacetimeDB connection (Public=true, new token, DB hex ID)
