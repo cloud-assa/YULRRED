@@ -98,9 +98,9 @@ export class UsersService {
     ])];
     let userMap = new Map<string, DbUser>();
     if (involvedIds.length > 0) {
-      const idList = involvedIds.map((id) => `'${id.replace(/'/g, "''")}'`).join(', ');
+      const idConditions = involvedIds.map((id) => `id = '${id.replace(/'/g, "''")}'`).join(' OR ');
       const involvedUsers = await this.spacetime.sql<DbUser>(
-        `SELECT * FROM user WHERE id IN (${idList})`,
+        `SELECT * FROM user WHERE ${idConditions}`,
       );
       userMap = new Map(involvedUsers.map((u) => [u.id, u]));
     }

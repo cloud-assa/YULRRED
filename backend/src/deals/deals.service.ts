@@ -225,8 +225,8 @@ export class DealsService {
     ])];
     let userMap = new Map<string, DbUser>();
     if (involvedIds.length > 0) {
-      const idList = involvedIds.map((id) => `'${this.esc(id)}'`).join(', ');
-      const users = await this.spacetime.sql<DbUser>(`SELECT * FROM user WHERE id IN (${idList})`);
+      const idConditions = involvedIds.map((id) => `id = '${this.esc(id)}'`).join(' OR ');
+      const users = await this.spacetime.sql<DbUser>(`SELECT * FROM user WHERE ${idConditions}`);
       userMap = new Map(users.map((u) => [u.id, u]));
     }
 
@@ -351,8 +351,8 @@ export class DealsService {
     ])];
     let userMap = new Map<string, DbUser>();
     if (involvedIds.length > 0) {
-      const idList = involvedIds.map((id) => `'${this.esc(id)}'`).join(', ');
-      const users = await this.spacetime.sql<DbUser>(`SELECT * FROM user WHERE id IN (${idList})`);
+      const idConditions = involvedIds.map((id) => `id = '${this.esc(id)}'`).join(' OR ');
+      const users = await this.spacetime.sql<DbUser>(`SELECT * FROM user WHERE ${idConditions}`);
       userMap = new Map(users.map((u) => [u.id, u]));
     }
 
