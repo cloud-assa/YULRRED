@@ -460,6 +460,8 @@ export default function DealDetailPage() {
   const { data: session, status } = useSession();
   const [deal, setDeal] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  // Must be declared here (top level) to comply with React Rules of Hooks
+  const [openDisputeFromInspection, setOpenDisputeFromInspection] = useState(false);
 
   const loadDeal = async () => {
     try { setDeal(await dealsApi.get(id)); }
@@ -490,7 +492,6 @@ export default function DealDetailPage() {
   const isBuyer  = deal.buyer?.id  === session?.user?.id;
   const isSeller = deal.seller?.id === session?.user?.id;
   const currentStepIdx = STEPS.findIndex((s) => s.key === deal.status);
-  const [openDisputeFromInspection, setOpenDisputeFromInspection] = useState(false);
 
   return (
     <div className="max-w-4xl mx-auto space-y-5">

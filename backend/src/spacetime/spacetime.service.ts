@@ -50,10 +50,35 @@ export class SpacetimeService {
     return result.rows.map((row) => {
       const obj: Record<string, unknown> = {};
       columns.forEach((col, idx) => {
-        obj[col] = row[idx] ?? null;
+        obj[col] = this.unwrapValue(row[idx]);
       });
       return obj as T;
     });
+  }
+
+  /**
+   * Unwrap BSATN typed values. SpacetimeDB may return either plain JSON
+   * primitives or typed wrappers like {String:"v"}, {I64:123}, {some:"v"}, {none:[]}.
+   */
+  private unwrapValue(value: unknown): unknown {
+    if (value === null || value === undefined) return null;
+    if (typeof value !== 'object') return value; // plain scalar — return as-is
+    const obj = value as Record<string, unknown>;
+    const keys = Object.keys(obj);
+    if (keys.length !== 1) return value; // not a typed wrapper
+
+    const key = keys[0];
+    const inner = obj[key];
+
+    // Option<T>: {some: v} or {none: []}
+    if (key === 'some') return inner;
+    if (key === 'none') return null;
+
+    // BSATN scalar wrappers: {String:"v"}, {Bool:true}, {I64:123}, {F64:1.5}, etc.
+    const bsatnScalars = ['String','Bool','I8','I16','I32','I64','U8','U16','U32','U64','F32','F64'];
+    if (bsatnScalars.includes(key)) return inner;
+
+    return value; // unknown shape — return raw
   }
 
   /**
@@ -61,17 +86,27 @@ export class SpacetimeService {
    */
   async sql<T>(query: string): Promise<T[]> {
     try {
-      const encodedDb = this.dbName; // DB hex ID - no encoding needed
+      const encodedDb = this.dbName;
       const response = await this.client.post<StdbSqlResponse>(
         `/v1/database/${encodedDb}/sql`,
         query,
         { headers: { 'Content-Type': 'text/plain' } },
       );
 
-      const results = response.data; // SpacetimeDB returns array directly: [{schema, rows}]
-      if (!results || results.length === 0) return [];
+      const raw = response.data as any;
+      // SpacetimeDB v1 returns an array directly: [{schema, rows}]
+      // Some proxy/versions may wrap it: {results: [{schema, rows}]}
+      const results: StdbResultRow[] = Array.isArray(raw)
+        ? raw
+        : Array.isArray(raw?.results)
+        ? raw.results
+        : [];
 
-      return this.parseRows<T>(results[0]);
+      if (results.length === 0) return [];
+      const first = results[0];
+      if (!first || !first.schema || !first.rows) return [];
+
+      return this.parseRows<T>(first);
     } catch (err: unknown) {
       const error = err as { response?: { data?: unknown; status?: number }; message?: string };
       this.logger.error(`SpacetimeDB SQL error: ${error?.message}`, error?.response?.data);

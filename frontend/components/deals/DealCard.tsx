@@ -1,7 +1,7 @@
 'use client';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { ArrowRight, Calendar } from 'lucide-react';
+import { ArrowRight, Calendar, ShoppingCart, Package } from 'lucide-react';
 import { formatCurrency, formatDate, formatRelative } from '@/lib/utils';
 import { DealStatusBadge } from '@/components/ui/StatusBadge';
 
@@ -14,11 +14,16 @@ interface Deal {
   status: string;
   deadline: string;
   createdAt: string;
-  buyer: { name: string; email: string };
-  seller: { name: string; email: string };
+  buyerId?: string;
+  sellerId?: string;
+  buyer: { id?: string; name: string; email: string };
+  seller: { id?: string; name: string; email: string };
 }
 
-export default function DealCard({ deal }: { deal: Deal; currentUserId?: string }) {
+export default function DealCard({ deal, currentUserId }: { deal: Deal; currentUserId?: string }) {
+  const isBuyer = currentUserId && (deal.buyer?.id === currentUserId || deal.buyerId === currentUserId);
+  const isSeller = currentUserId && (deal.seller?.id === currentUserId || deal.sellerId === currentUserId);
+
   return (
     <Link href={`/deals/${deal.id}`} className="block group">
       <motion.div
@@ -36,7 +41,19 @@ export default function DealCard({ deal }: { deal: Deal; currentUserId?: string 
               <span>{deal.seller?.name}</span>
             </div>
           </div>
-          <DealStatusBadge status={deal.status} />
+          <div className="flex items-center gap-2 shrink-0">
+            {isBuyer && (
+              <span className="flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-cyan-500/15 text-cyan-400 border border-cyan-500/20">
+                <ShoppingCart className="w-2.5 h-2.5" />Comprador
+              </span>
+            )}
+            {isSeller && (
+              <span className="flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-purple-500/15 text-purple-400 border border-purple-500/20">
+                <Package className="w-2.5 h-2.5" />Vendedor
+              </span>
+            )}
+            <DealStatusBadge status={deal.status} />
+          </div>
         </div>
 
         <div className="flex items-end justify-between">

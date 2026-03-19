@@ -97,6 +97,43 @@
   .chip-delivered { background: rgba(139,92,246,0.12); color: #8B5CF6; border: 1px solid rgba(139,92,246,0.22); border-radius: 100px; padding: 3px 12px; font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; }
   .chip-completed { background: rgba(34,197,94,0.12);  color: #4ADE80; border: 1px solid rgba(34,197,94,0.22);  border-radius: 100px; padding: 3px 12px; font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; }
 
+  /* Form inputs */
+  .input-glass {
+    width: 100%;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.10);
+    border-radius: 12px;
+    color: white;
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+    padding: 12px 14px;
+    outline: none;
+    transition: border-color 0.2s, background 0.2s;
+  }
+  .input-glass:focus {
+    border-color: rgba(0,212,255,0.45);
+    background: rgba(255,255,255,0.07);
+  }
+  .input-glass::placeholder { color: rgba(255,255,255,0.25); }
+
+  /* Danger button */
+  .btn-danger-glass {
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    background: rgba(239,68,68,0.10);
+    color: #f87171;
+    font-family: 'Space Grotesk', sans-serif; font-weight: 600;
+    border-radius: 14px; padding: 10px 20px; font-size: 14px;
+    border: 1px solid rgba(239,68,68,0.25);
+    transition: var(--transition); cursor: pointer; text-decoration: none;
+    white-space: nowrap;
+  }
+  .btn-danger-glass:hover {
+    background: rgba(239,68,68,0.18);
+    border-color: rgba(239,68,68,0.45);
+    transform: translateY(-1px);
+  }
+  .btn-danger-glass:focus-visible { outline: 2px solid rgba(239,68,68,0.5); outline-offset: 3px; }
+
   /* Dot grid bg */
   .dot-grid {
     background-image: radial-gradient(rgba(0,212,255,0.10) 1px, transparent 1px);

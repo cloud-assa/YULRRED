@@ -121,19 +121,26 @@ export class DealsService {
       const resolvedAt = unwrap(dispute?.resolved_at);
       const evidence = unwrap(dispute?.evidence);
       const resolution = unwrap(dispute?.resolution);
-      result.dispute = dispute
-        ? {
-            id: dispute.id,
-            dealId: dispute.deal_id,
-            raisedById: dispute.raised_by_id,
-            reason: dispute.reason,
-            evidence,
-            status: dispute.status,
-            resolution,
-            resolvedAt: resolvedAt ? new Date(resolvedAt) : null,
-            createdAt: new Date(dispute.created_at),
-          }
-        : null;
+      if (dispute) {
+        const raisedByUser =
+          dispute.raised_by_id === deal.buyer_id ? buyer : seller;
+        result.dispute = {
+          id: dispute.id,
+          dealId: dispute.deal_id,
+          raisedById: dispute.raised_by_id,
+          raisedBy: raisedByUser
+            ? { id: raisedByUser.id, name: raisedByUser.name, email: raisedByUser.email }
+            : null,
+          reason: dispute.reason,
+          evidence,
+          status: dispute.status,
+          resolution,
+          resolvedAt: resolvedAt ? new Date(resolvedAt) : null,
+          createdAt: new Date(dispute.created_at),
+        };
+      } else {
+        result.dispute = null;
+      }
     }
     return result;
   }
@@ -204,12 +211,24 @@ export class DealsService {
   }
 
   async findAll(userId: string) {
-    const allDeals = await this.spacetime.sql<DbDeal>('SELECT * FROM deal');
-    const deals = allDeals
-      .filter((d) => d.buyer_id === userId || d.seller_id === userId)
-      .sort((a, b) => b.created_at - a.created_at);
-    const allUsers = await this.spacetime.sql<DbUser>('SELECT * FROM user');
-    const userMap = new Map(allUsers.map((u) => [u.id, u]));
+    const escapedId = this.esc(userId);
+    const deals = (
+      await this.spacetime.sql<DbDeal>(
+        `SELECT * FROM deal WHERE buyer_id = '${escapedId}' OR seller_id = '${escapedId}'`,
+      )
+    ).sort((a, b) => b.created_at - a.created_at);
+
+    // Fetch only involved users instead of the whole table
+    const involvedIds = [...new Set([
+      ...deals.map((d) => d.buyer_id),
+      ...deals.map((d) => d.seller_id),
+    ])];
+    let userMap = new Map<string, DbUser>();
+    if (involvedIds.length > 0) {
+      const idList = involvedIds.map((id) => `'${this.esc(id)}'`).join(', ');
+      const users = await this.spacetime.sql<DbUser>(`SELECT * FROM user WHERE id IN (${idList})`);
+      userMap = new Map(users.map((u) => [u.id, u]));
+    }
 
     return Promise.all(
       deals.map(async (deal) => {
@@ -323,10 +342,19 @@ export class DealsService {
   }
 
   async getAllAdmin() {
-    const allDeals = await this.spacetime.sql<DbDeal>('SELECT * FROM deal');
-    const deals = allDeals.sort((a, b) => b.created_at - a.created_at);
-    const allUsers = await this.spacetime.sql<DbUser>('SELECT * FROM user');
-    const userMap = new Map(allUsers.map((u) => [u.id, u]));
+    const deals = (await this.spacetime.sql<DbDeal>('SELECT * FROM deal'))
+      .sort((a, b) => b.created_at - a.created_at);
+
+    const involvedIds = [...new Set([
+      ...deals.map((d) => d.buyer_id),
+      ...deals.map((d) => d.seller_id),
+    ])];
+    let userMap = new Map<string, DbUser>();
+    if (involvedIds.length > 0) {
+      const idList = involvedIds.map((id) => `'${this.esc(id)}'`).join(', ');
+      const users = await this.spacetime.sql<DbUser>(`SELECT * FROM user WHERE id IN (${idList})`);
+      userMap = new Map(users.map((u) => [u.id, u]));
+    }
 
     return Promise.all(
       deals.map(async (deal) => {

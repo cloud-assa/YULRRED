@@ -127,7 +127,7 @@ export default function NewDealPage() {
                 {...register('sellerEmail', { required: 'El correo del vendedor es requerido' })}
               />
             </div>
-            <p className="text-xs text-gray-600 mt-1">El vendedor debe tener cuenta en SecureDeal.</p>
+            <p className="text-xs text-gray-600 mt-1">El vendedor debe tener cuenta en YULRRED.</p>
             {errors.sellerEmail && <p className="text-red-400 text-xs mt-1 flex items-center gap-1"><AlertCircle className="w-3 h-3" />{errors.sellerEmail.message}</p>}
           </div>
         </div>

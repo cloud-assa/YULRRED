@@ -69,15 +69,16 @@ export class UsersService {
   }
 
   async getDashboardStats(userId: string) {
+    const esc = userId.replace(/'/g, "''");
     const [fetchedDeals, fetchedNotifications] = await Promise.all([
-      this.spacetime.sql<DbDeal>('SELECT * FROM deal'),
+      this.spacetime.sql<DbDeal>(
+        `SELECT * FROM deal WHERE buyer_id = '${esc}' OR seller_id = '${esc}'`,
+      ),
       this.spacetime.sql<DbNotification>(
-        `SELECT * FROM notification WHERE user_id = '${userId.replace(/'/g, "''")}'`,
+        `SELECT * FROM notification WHERE user_id = '${esc}'`,
       ),
     ]);
-    const allDeals = fetchedDeals
-      .filter((d) => d.buyer_id === userId || d.seller_id === userId)
-      .sort((a, b) => b.created_at - a.created_at);
+    const allDeals = fetchedDeals.sort((a, b) => b.created_at - a.created_at);
     const notifications = fetchedNotifications
       .filter((n) => !n.read)
       .sort((a, b) => b.created_at - a.created_at)
@@ -90,8 +91,19 @@ export class UsersService {
       .filter((d) => d.seller_id === userId)
       .slice(0, 5);
 
-    const allUsers = await this.spacetime.sql<DbUser>('SELECT * FROM user');
-    const userMap = new Map(allUsers.map((u) => [u.id, u]));
+    // Fetch only the users involved in these deals (not the whole table)
+    const involvedIds = [...new Set([
+      ...allDeals.map((d) => d.buyer_id),
+      ...allDeals.map((d) => d.seller_id),
+    ])];
+    let userMap = new Map<string, DbUser>();
+    if (involvedIds.length > 0) {
+      const idList = involvedIds.map((id) => `'${id.replace(/'/g, "''")}'`).join(', ');
+      const involvedUsers = await this.spacetime.sql<DbUser>(
+        `SELECT * FROM user WHERE id IN (${idList})`,
+      );
+      userMap = new Map(involvedUsers.map((u) => [u.id, u]));
+    }
 
     const enrichDeal = (deal: DbDeal) => {
       const buyer = userMap.get(deal.buyer_id);
