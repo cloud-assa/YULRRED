@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
+import { useSession } from 'next-auth/react';
 import toast from 'react-hot-toast';
 import { useForm } from 'react-hook-form';
 import { motion } from 'framer-motion';
@@ -84,13 +85,17 @@ function ResolveModal({ dispute, onResolved, onClose }: { dispute: any; onResolv
 const FILTER_LABELS: Record<string, string> = { ALL: 'Todos', OPEN: 'Abierta', UNDER_REVIEW: 'En Revisión', RESOLVED_BUYER: 'Ganó Comprador', RESOLVED_SELLER: 'Ganó Vendedor' };
 
 export default function AdminDisputesPage() {
+  const { status } = useSession();
   const [disputes, setDisputes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<any>(null);
   const [filter, setFilter] = useState('OPEN');
 
   const load = () => disputesApi.list().then(setDisputes).catch(() => toast.error('Error al cargar')).finally(() => setLoading(false));
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    if (status !== 'authenticated') return;
+    load();
+  }, [status]);
 
   const markUnderReview = async (id: string) => {
     try { await disputesApi.markReview(id); toast.success('Marcada en revisión'); load(); }

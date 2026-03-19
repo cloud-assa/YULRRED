@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
+import { useSession } from 'next-auth/react';
 import toast from 'react-hot-toast';
 import { AnimatePresence } from 'framer-motion';
 import { notificationsApi } from '@/lib/api';
@@ -9,11 +10,15 @@ import PageHeader from '@/components/ui/PageHeader';
 import { Bell, BellOff, CheckCheck } from 'lucide-react';
 
 export default function NotificationsPage() {
+  const { status } = useSession();
   const [notifications, setNotifications] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   const load = () => notificationsApi.list().then(setNotifications).finally(() => setLoading(false));
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    if (status !== 'authenticated') return;
+    load();
+  }, [status]);
 
   const markAllRead = async () => {
     try {

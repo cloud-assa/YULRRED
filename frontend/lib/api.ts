@@ -1,5 +1,4 @@
 import axios from 'axios';
-import { getSession } from 'next-auth/react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -8,12 +7,13 @@ export const api = axios.create({
   headers: { 'Content-Type': 'application/json' },
 });
 
-// Attach JWT from NextAuth session on every request
-api.interceptors.request.use(async (config) => {
-  const session = await getSession();
-  if (session?.accessToken) {
-    config.headers.Authorization = `Bearer ${session.accessToken}`;
-  }
+// Token is set by AuthSync component (providers.tsx) whenever session changes.
+// Using a module-level variable avoids an async getSession() HTTP call per request.
+let _authToken: string | null = null;
+export function setAuthToken(token: string | null) { _authToken = token; }
+
+api.interceptors.request.use((config) => {
+  if (_authToken) config.headers.Authorization = `Bearer ${_authToken}`;
   return config;
 });
 

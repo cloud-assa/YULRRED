@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
+import { useSession } from 'next-auth/react';
 import toast from 'react-hot-toast';
 import { usersApi } from '@/lib/api';
 import { formatDate } from '@/lib/utils';
@@ -8,12 +9,14 @@ import Avatar from '@/components/ui/Avatar';
 import { Users, Mail, Calendar } from 'lucide-react';
 
 export default function AdminUsersPage() {
+  const { status } = useSession();
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (status !== 'authenticated') return;
     usersApi.list().then(setUsers).catch(() => toast.error('Error al cargar')).finally(() => setLoading(false));
-  }, []);
+  }, [status]);
 
   return (
     <div className="max-w-5xl mx-auto space-y-5">

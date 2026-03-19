@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
+import { useSession } from 'next-auth/react';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
 import { dealsApi } from '@/lib/api';
@@ -16,13 +17,15 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 export default function AdminDealsPage() {
+  const { status } = useSession();
   const [deals, setDeals] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('ALL');
 
   useEffect(() => {
+    if (status !== 'authenticated') return;
     dealsApi.allAdmin().then(setDeals).catch(() => toast.error('Error al cargar')).finally(() => setLoading(false));
-  }, []);
+  }, [status]);
 
   const statuses = ['ALL', 'PENDING', 'FUNDED', 'DELIVERED', 'COMPLETED', 'DISPUTED', 'CANCELLED', 'REFUNDED'];
   const filtered = filter === 'ALL' ? deals : deals.filter((d) => d.status === filter);

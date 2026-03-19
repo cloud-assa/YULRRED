@@ -457,7 +457,7 @@ const STEPS = [
 
 export default function DealDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
   const [deal, setDeal] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
@@ -467,7 +467,10 @@ export default function DealDetailPage() {
     finally { setLoading(false); }
   };
 
-  useEffect(() => { loadDeal(); }, [id]);
+  useEffect(() => {
+    if (status !== 'authenticated') return;
+    loadDeal();
+  }, [id, status]);
 
   if (loading) return (
     <div className="max-w-4xl mx-auto space-y-4">
