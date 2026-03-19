@@ -1,241 +1,316 @@
+'use client';
+
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import {
-  ShieldCheck, CheckCircle2, Zap, Lock,
-  Scale, CreditCard, Package, PenLine,
-  Globe, Bell, Users, Github, Star,
-  Briefcase,
+  ShieldCheck, CheckCircle2, CreditCard,
+  Package, PenLine, Lock, Scale, Star,
+  Menu, X, ArrowRight, Zap,
 } from 'lucide-react';
 
-const spaceGrotesk = { fontFamily: "'Space Grotesk', sans-serif" };
-const headingLg = { ...spaceGrotesk, fontSize: 'clamp(30px, 5vw, 52px)', letterSpacing: '-0.025em' };
-const headingXl = { ...spaceGrotesk, fontSize: 'clamp(44px, 7vw, 80px)', letterSpacing: '-0.03em' };
+const sg = { fontFamily: "'Space Grotesk', sans-serif" };
 
 export default function LandingPage() {
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  // Scroll-reveal
+  useEffect(() => {
+    const obs = new IntersectionObserver(
+      (entries) => entries.forEach((e) => { if (e.isIntersecting) e.target.classList.add('in-view'); }),
+      { threshold: 0.08, rootMargin: '0px 0px -48px 0px' }
+    );
+    document.querySelectorAll('.reveal').forEach((el) => obs.observe(el));
+    return () => obs.disconnect();
+  }, []);
+
+  const navLinks = [
+    { label: 'Cómo funciona', href: '#como-funciona' },
+    { label: 'Beneficios',    href: '#beneficios' },
+    { label: 'Precios',       href: '#precios' },
+  ];
+
   return (
     <div className="min-h-screen text-white overflow-x-hidden">
 
-      {/* NAVBAR */}
-      <nav
-        className="fixed top-4 left-1/2 -translate-x-1/2 z-50 w-[calc(100%-32px)] max-w-6xl"
-        aria-label="Navegación principal"
-      >
+      {/* ── NAVBAR ─────────────────────────────────────── */}
+      <nav className="fixed top-4 left-1/2 -translate-x-1/2 z-50 w-[calc(100%-24px)] max-w-5xl" aria-label="Navegación">
         <div
-          className="flex items-center justify-between px-6 py-3"
+          className="flex items-center justify-between px-5 py-3"
           style={{
-            background: 'rgba(10,10,15,0.88)',
+            background: 'rgba(10,10,15,0.90)',
             backdropFilter: 'blur(24px)',
             WebkitBackdropFilter: 'blur(24px)',
             border: '1px solid rgba(255,255,255,0.08)',
-            borderRadius: '24px',
+            borderRadius: '20px',
             boxShadow: '0 4px 32px rgba(0,0,0,0.5)',
           }}
         >
-          <Link href="/" className="text-xl font-extrabold tracking-tight text-gradient" style={spaceGrotesk}>
+          {/* Logo */}
+          <Link href="/" className="text-lg font-extrabold tracking-tight text-gradient" style={sg}>
             YULRRED
           </Link>
-          <div className="hidden md:flex items-center gap-8">
-            {[
-              { label: 'Cómo funciona', href: '#como-funciona' },
-              { label: 'Características', href: '#features' },
-              { label: 'Precios', href: '#precios' },
-              { label: 'API Docs', href: 'https://yulrred-api.vercel.app/api/docs', external: true },
-            ].map((link) => (
-              <a
-                key={link.label}
-                href={link.href}
-                className="text-sm text-gray-400 hover:text-white transition-colors cursor-pointer"
-                {...(link.external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
-              >
-                {link.label}
+
+          {/* Desktop links */}
+          <div className="hidden md:flex items-center gap-7">
+            {navLinks.map((l) => (
+              <a key={l.label} href={l.href} className="text-sm text-gray-400 hover:text-white transition-colors">
+                {l.label}
               </a>
             ))}
           </div>
-          <div className="flex items-center gap-2">
-            <Link href="/login" className="btn-ghost py-2 px-4 text-sm hidden sm:inline-flex">Iniciar Sesión</Link>
-            <Link href="/register" className="btn-glow py-2 px-4 text-sm gap-2">
-              <ShieldCheck className="w-4 h-4" aria-hidden="true" />
-              Comenzar gratis
-            </Link>
+
+          {/* Desktop CTAs */}
+          <div className="hidden md:flex items-center gap-2">
+            <Link href="/login"    className="btn-ghost py-2 px-5 text-sm">Entrar</Link>
+            <Link href="/register" className="btn-glow py-2 px-5 text-sm">Crear cuenta</Link>
           </div>
+
+          {/* Mobile hamburger */}
+          <button
+            className="md:hidden p-2 rounded-lg text-gray-400 hover:text-white transition-colors"
+            style={{ background: 'rgba(255,255,255,0.05)' }}
+            onClick={() => setMenuOpen(!menuOpen)}
+            aria-label={menuOpen ? 'Cerrar menú' : 'Abrir menú'}
+            aria-expanded={menuOpen}
+          >
+            {menuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+          </button>
         </div>
+
+        {/* Mobile dropdown */}
+        {menuOpen && (
+          <div
+            className="mt-2 rounded-2xl p-4 flex flex-col gap-3"
+            style={{ background: 'rgba(10,10,15,0.96)', border: '1px solid rgba(255,255,255,0.08)', backdropFilter: 'blur(20px)' }}
+          >
+            {navLinks.map((l) => (
+              <a key={l.label} href={l.href} className="text-sm text-gray-300 hover:text-white py-2 px-3 rounded-lg hover:bg-white/5 transition-colors" onClick={() => setMenuOpen(false)}>
+                {l.label}
+              </a>
+            ))}
+            <div className="flex flex-col gap-2 pt-2 border-t border-white/10 mt-1">
+              <Link href="/login"    className="btn-ghost py-3 text-sm text-center" onClick={() => setMenuOpen(false)}>Entrar</Link>
+              <Link href="/register" className="btn-glow py-3 text-sm text-center"  onClick={() => setMenuOpen(false)}>Crear cuenta gratis</Link>
+            </div>
+          </div>
+        )}
       </nav>
 
-      {/* HERO */}
-      <section className="relative min-h-screen flex items-center justify-center pt-36 pb-24 overflow-hidden" aria-labelledby="hero-heading">
+      {/* ── HERO ───────────────────────────────────────── */}
+      <section className="relative min-h-screen flex items-center justify-center pt-28 pb-20 px-6" aria-labelledby="hero-h">
+        {/* Background orb */}
         <div
-          className="absolute top-0 left-1/2 -translate-x-1/2 w-[900px] h-[700px] pointer-events-none blur-3xl animate-orb"
-          style={{ background: 'radial-gradient(ellipse 60% 60% at 50% 30%, rgba(0,212,255,0.10), rgba(139,92,246,0.08), transparent)' }}
+          className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-3xl h-[600px] pointer-events-none blur-3xl animate-orb"
+          style={{ background: 'radial-gradient(ellipse 70% 60% at 50% 30%, rgba(0,212,255,0.09), rgba(139,92,246,0.07), transparent)' }}
           aria-hidden="true"
         />
-        <div
-          className="absolute bottom-0 right-0 w-[500px] h-[400px] pointer-events-none blur-3xl"
-          style={{ background: 'radial-gradient(ellipse, rgba(139,92,246,0.07), transparent)' }}
-          aria-hidden="true"
-        />
+        {/* Dot grid */}
         <div
           className="absolute inset-0 dot-grid pointer-events-none"
-          style={{
-            opacity: 0.35,
-            maskImage: 'radial-gradient(ellipse 80% 80% at 50% 50%, black 30%, transparent 100%)',
-            WebkitMaskImage: 'radial-gradient(ellipse 80% 80% at 50% 50%, black 30%, transparent 100%)',
-          }}
+          style={{ opacity: 0.3, maskImage: 'radial-gradient(ellipse 70% 70% at 50% 50%, black 20%, transparent 100%)', WebkitMaskImage: 'radial-gradient(ellipse 70% 70% at 50% 50%, black 20%, transparent 100%)' }}
           aria-hidden="true"
         />
-        <div className="relative z-10 max-w-5xl mx-auto px-6 text-center">
-          <div className="inline-flex items-center gap-2.5 glass-sm px-4 py-2 mb-10">
-            <span className="w-2 h-2 rounded-full bg-[#00D4FF] animate-pulse-dot" style={{ boxShadow: '0 0 8px #00D4FF' }} aria-hidden="true" />
-            <span className="text-sm font-semibold text-[#00D4FF]">Plataforma activa en producción</span>
-            <span className="text-gray-600" aria-hidden="true">·</span>
-            <span className="text-sm text-gray-500">SpacetimeDB + Stripe</span>
+
+        <div className="relative z-10 max-w-4xl mx-auto text-center">
+          {/* Live badge */}
+          <div className="inline-flex items-center gap-2 glass-sm px-4 py-2 mb-8 animate-fade-up">
+            <span className="w-2 h-2 rounded-full bg-[#00D4FF] animate-pulse-dot shrink-0" style={{ boxShadow: '0 0 8px #00D4FF' }} aria-hidden="true" />
+            <span className="text-sm text-[#00D4FF] font-semibold">Plataforma activa · 100% online</span>
           </div>
-          <h1 className="font-extrabold leading-[1.06] mb-6" id="hero-heading" style={headingXl}>
-            Cada trato,<br />
-            <span className="text-gradient">protegido por código</span>
+
+          {/* Heading */}
+          <h1
+            id="hero-h"
+            className="font-extrabold leading-[1.08] mb-6 animate-fade-up"
+            style={{ ...sg, fontSize: 'clamp(38px, 6.5vw, 76px)', letterSpacing: '-0.03em', animationDelay: '0.1s' }}
+          >
+            Tu dinero, seguro<br />
+            <span className="text-gradient">hasta que todo esté listo</span>
           </h1>
-          <p className="text-xl text-gray-400 max-w-2xl mx-auto mb-12 leading-relaxed">
-            YULRRED es la plataforma escrow SaaS que custodia tu dinero hasta que ambas partes cumplan. Sin intermediarios incómodos. Solo confianza automatizada.
+
+          {/* Subheading */}
+          <p
+            className="text-lg md:text-xl text-gray-400 max-w-xl mx-auto mb-10 leading-relaxed animate-fade-up"
+            style={{ animationDelay: '0.2s' }}
+          >
+            YULRRED guarda el dinero mientras se completa el trato.
+            El comprador paga, el vendedor entrega — nadie pierde.
           </p>
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-16">
-            <Link href="/register" className="btn-glow px-8 py-4 text-base gap-2.5">
+
+          {/* CTAs */}
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-12 animate-fade-up" style={{ animationDelay: '0.3s' }}>
+            <Link href="/register" className="btn-glow w-full sm:w-auto px-8 py-4 text-base">
               <ShieldCheck className="w-5 h-5" aria-hidden="true" />
-              Crear cuenta gratis
+              Empezar gratis
             </Link>
-            <a href="https://yulrred-api.vercel.app/api/docs" target="_blank" rel="noopener noreferrer" className="btn-ghost px-8 py-4 text-base gap-2.5">
-              <Globe className="w-5 h-5" aria-hidden="true" />
-              Ver API Docs
+            <a href="#como-funciona" className="btn-ghost w-full sm:w-auto px-8 py-4 text-base">
+              Ver cómo funciona
+              <ArrowRight className="w-4 h-4" aria-hidden="true" />
             </a>
           </div>
-          <div className="inline-flex flex-wrap items-center justify-center gap-x-8 gap-y-3 glass-sm px-8 py-4" role="list">
+
+          {/* Trust signals */}
+          <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm text-gray-500 animate-fade-up" style={{ animationDelay: '0.4s' }}>
             {[
-              { icon: ShieldCheck, text: 'Sin tarjeta para registrarse', color: 'text-[#00D4FF]' },
-              { icon: CreditCard,  text: '5% de comisión transparente',  color: 'text-[#8B5CF6]' },
-              { icon: Scale,       text: 'Disputas resueltas por admin', color: 'text-emerald-400' },
-            ].map(({ icon: Icon, text, color }) => (
-              <div key={text} className="flex items-center gap-2 text-sm text-gray-400" role="listitem">
-                <Icon className={`w-4 h-4 ${color} shrink-0`} aria-hidden="true" />
-                <span>{text}</span>
-              </div>
+              'Sin tarjeta para registrarse',
+              '5% de comisión transparente',
+              'Dinero protegido en todo momento',
+            ].map((t) => (
+              <span key={t} className="flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-[#00D4FF] shrink-0" aria-hidden="true" />
+                {t}
+              </span>
             ))}
           </div>
         </div>
       </section>
 
-      {/* STATS */}
-      <section aria-label="Estadísticas" className="px-6 pb-8">
+      {/* ── STATS ──────────────────────────────────────── */}
+      <section aria-label="Estadísticas" className="px-6 pb-16">
         <div className="max-w-4xl mx-auto">
-          <div className="glass grid grid-cols-2 md:grid-cols-4">
-            {[
-              { num: '$2.4M+', label: 'en tratos custodiados' },
-              { num: '99.9%',  label: 'uptime en producción' },
-              { num: '3',      label: 'roles: Buyer · Seller · Admin' },
-              { num: '5%',     label: 'comisión plana, sin sorpresas' },
-            ].map((stat, i) => (
-              <div key={i} className="text-center py-8 px-4 border-b md:border-b-0 border-r last:border-r-0" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
-                <span className="block font-extrabold text-gradient mb-1" style={{ ...spaceGrotesk, fontSize: 'clamp(26px, 4vw, 38px)', letterSpacing: '-0.02em' }}>
-                  {stat.num}
-                </span>
-                <span className="text-sm text-gray-500">{stat.label}</span>
-              </div>
-            ))}
+          <div className="glass reveal" style={{ overflow: 'hidden' }}>
+            <div className="grid grid-cols-2 md:grid-cols-4">
+              {[
+                { num: '$2.4M+', label: 'en tratos protegidos' },
+                { num: '99.9%',  label: 'disponibilidad' },
+                { num: '<2 min', label: 'para crear un trato' },
+                { num: 'Solo 5%', label: 'de comisión, sin más' },
+              ].map((s, i) => (
+                <div
+                  key={i}
+                  className="text-center py-8 px-4"
+                  style={{
+                    borderRight:  i < 3 ? '1px solid rgba(255,255,255,0.06)' : 'none',
+                    borderBottom: i < 2 ? '1px solid rgba(255,255,255,0.06)' : 'none',
+                  }}
+                >
+                  <span
+                    className="block font-extrabold text-gradient mb-1"
+                    style={{ ...sg, fontSize: 'clamp(22px, 4vw, 34px)', letterSpacing: '-0.02em' }}
+                  >
+                    {s.num}
+                  </span>
+                  <span className="text-sm text-gray-500">{s.label}</span>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </section>
 
-      {/* HOW IT WORKS */}
-      <section className="py-24 px-6" id="como-funciona" aria-labelledby="steps-heading">
-        <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-16">
-            <div className="badge badge-cyan mb-5">Flujo escrow</div>
-            <h2 className="font-extrabold mb-4 tracking-tight" id="steps-heading" style={headingLg}>
-              Cómo funciona YULRRED
+      {/* ── HOW IT WORKS ───────────────────────────────── */}
+      <section className="py-20 px-6 scroll-mt-20" id="como-funciona" aria-labelledby="steps-h">
+        <div className="max-w-5xl mx-auto">
+          <div className="text-center mb-14 reveal">
+            <div className="badge badge-cyan mb-4">Cómo funciona</div>
+            <h2
+              className="font-extrabold mb-3"
+              id="steps-h"
+              style={{ ...sg, fontSize: 'clamp(26px, 4vw, 44px)', letterSpacing: '-0.025em' }}
+            >
+              Tres pasos. Sin complicaciones.
             </h2>
-            <p className="text-gray-400 max-w-xl mx-auto text-lg leading-relaxed">
-              Un proceso claro y transparente que protege a compradores y vendedores en cada paso.
+            <p className="text-gray-400 text-lg max-w-md mx-auto">
+              No necesitas saber nada de tecnología. Solo seguir los pasos.
             </p>
           </div>
-          <div className="grid md:grid-cols-4 gap-4 relative">
-            <div
-              className="absolute hidden md:block top-[54px] left-[12.5%] right-[12.5%] h-px pointer-events-none"
-              style={{ background: 'linear-gradient(90deg, transparent, rgba(0,212,255,0.4), rgba(139,92,246,0.4), transparent)' }}
-              aria-hidden="true"
-            />
+
+          <div className="grid md:grid-cols-3 gap-5">
             {[
-              { num: '1', icon: PenLine,      chipClass: 'chip-pending',   chip: 'PENDING',   title: 'Buyer crea el trato',    desc: 'Define título, monto y descripción. YULRRED calcula el 5% de comisión automáticamente.' },
-              { num: '2', icon: CreditCard,   chipClass: 'chip-funded',    chip: 'FUNDED',    title: 'Buyer deposita fondos',  desc: 'Pago seguro con Stripe. Los fondos quedan en custodia. El seller no recibe nada aún.' },
-              { num: '3', icon: Package,      chipClass: 'chip-delivered', chip: 'DELIVERED', title: 'Seller entrega',         desc: 'El vendedor completa el trabajo y marca el trato como entregado en el dashboard.' },
-              { num: '4', icon: CheckCircle2, chipClass: 'chip-completed', chip: 'COMPLETED', title: 'Fondos liberados',       desc: 'El buyer confirma el recibo. Los fondos se liberan automáticamente al seller.' },
-            ].map((step) => {
+              {
+                num: '1', icon: PenLine, color: '#00D4FF', bg: 'rgba(0,212,255,0.10)',
+                title: 'El comprador crea el trato',
+                desc: 'Describe qué se va a comprar o contratar, el monto y el plazo. Listo en 2 minutos.',
+                chip: <span className="chip-pending">Pendiente</span>,
+              },
+              {
+                num: '2', icon: CreditCard, color: '#8B5CF6', bg: 'rgba(139,92,246,0.10)',
+                title: 'El dinero queda en custodia',
+                desc: 'El comprador paga y el dinero queda bloqueado en YULRRED. El vendedor sabe que el pago está garantizado.',
+                chip: <span className="chip-funded">Fondos guardados</span>,
+              },
+              {
+                num: '3', icon: Package, color: '#4ADE80', bg: 'rgba(74,222,128,0.10)',
+                title: 'Se entrega y se libera el pago',
+                desc: 'El vendedor entrega. El comprador confirma. El dinero llega automáticamente al vendedor.',
+                chip: <span className="chip-completed">Completado</span>,
+              },
+            ].map((step, i) => {
               const Icon = step.icon;
               return (
-                <article key={step.num} className="glass p-6 relative z-10 text-center hover:-translate-y-1.5 transition-all duration-300" aria-labelledby={`step${step.num}-title`}>
+                <article
+                  key={i}
+                  className={`glass p-7 reveal delay-${i + 1} hover:-translate-y-1 transition-all duration-300`}
+                  aria-labelledby={`step-${i}`}
+                >
                   <div
-                    className="w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-4 text-lg font-bold"
-                    style={{ background: 'linear-gradient(135deg, rgba(0,212,255,0.15), rgba(139,92,246,0.15))', border: '1px solid rgba(0,212,255,0.3)', ...spaceGrotesk }}
+                    className="w-12 h-12 rounded-2xl flex items-center justify-center mb-5"
+                    style={{ background: step.bg }}
                     aria-hidden="true"
                   >
-                    {step.num}
+                    <Icon className="w-6 h-6" style={{ color: step.color }} />
                   </div>
-                  <h3 id={`step${step.num}-title`} className="font-bold text-base mb-2">{step.title}</h3>
-                  <p className="text-gray-500 text-sm leading-relaxed mb-4">{step.desc}</p>
-                  <span className={`inline-block text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full ${step.chipClass}`}>{step.chip}</span>
+                  <div className="mb-3">{step.chip}</div>
+                  <h3 id={`step-${i}`} className="font-bold text-base mb-2" style={sg}>{step.title}</h3>
+                  <p className="text-gray-500 text-sm leading-relaxed">{step.desc}</p>
                 </article>
               );
             })}
           </div>
+
+          {/* Dispute note */}
+          <div className="mt-6 glass-sm px-6 py-4 flex items-start gap-3 reveal delay-4">
+            <Scale className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" aria-hidden="true" />
+            <p className="text-sm text-gray-400">
+              <strong className="text-white">¿Hay un problema?</strong> Si no hay acuerdo, un administrador de YULRRED revisa el caso y decide quién tiene razón. Siempre imparcial.
+            </p>
+          </div>
         </div>
       </section>
 
-      {/* FEATURES BENTO */}
-      <section className="py-24 px-6" id="features" aria-labelledby="features-heading" style={{ background: 'linear-gradient(180deg, transparent 0%, rgba(0,212,255,0.02) 50%, transparent 100%)' }}>
-        <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-16">
-            <div className="badge badge-purple mb-5">Características</div>
-            <h2 className="font-extrabold mb-4 tracking-tight" id="features-heading" style={headingLg}>
-              Todo lo que necesitas<br />para confiar en cada deal
+      {/* ── BENEFITS ───────────────────────────────────── */}
+      <section
+        className="py-20 px-6 scroll-mt-20"
+        id="beneficios"
+        aria-labelledby="benefits-h"
+        style={{ background: 'rgba(13,13,22,0.6)', borderTop: '1px solid rgba(255,255,255,0.05)', borderBottom: '1px solid rgba(255,255,255,0.05)' }}
+      >
+        <div className="max-w-5xl mx-auto">
+          <div className="text-center mb-14 reveal">
+            <div className="badge badge-purple mb-4">Por qué YULRRED</div>
+            <h2
+              className="font-extrabold mb-3"
+              id="benefits-h"
+              style={{ ...sg, fontSize: 'clamp(26px, 4vw, 44px)', letterSpacing: '-0.025em' }}
+            >
+              Confía en cada trato
             </h2>
-            <p className="text-gray-400 text-lg">Construido con el stack más fiable del ecosistema cloud moderno.</p>
+            <p className="text-gray-400 text-lg max-w-md mx-auto">
+              Para compradores, vendedores y freelancers que quieren hacer negocios sin riesgos.
+            </p>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
-            <article className="glass p-8 md:col-span-7 md:row-span-2 hover:-translate-y-1 transition-all duration-300" aria-labelledby="feat-custody">
-              <div className="w-12 h-12 rounded-xl flex items-center justify-center mb-5" style={{ background: 'rgba(0,212,255,0.12)' }} aria-hidden="true">
-                <ShieldCheck className="w-6 h-6 text-[#00D4FF]" />
-              </div>
-              <h3 id="feat-custody" className="text-2xl font-bold mb-3">Custodia inteligente de fondos</h3>
-              <p className="text-gray-400 leading-relaxed mb-6">
-                Los fondos no se mueven hasta que ambas partes estén de acuerdo. Stripe PaymentIntents garantiza que el dinero esté siempre asegurado durante todo el ciclo de vida del trato.
-              </p>
-              <div className="flex flex-wrap items-center gap-2 mb-6" aria-label="Estados del deal">
-                {(['PENDING', 'FUNDED', 'DELIVERED', 'COMPLETED'] as const).map((state, i, arr) => (
-                  <span key={state} className="flex items-center gap-2">
-                    <span className={`text-xs font-bold uppercase tracking-wider px-3 py-1.5 rounded-full chip-${state.toLowerCase()}`}>{state}</span>
-                    {i < arr.length - 1 && <span className="text-gray-600 font-bold" aria-hidden="true">→</span>}
-                  </span>
-                ))}
-              </div>
-              <div className="flex flex-wrap gap-2" aria-label="Tecnologías">
-                {[{ label: 'SpacetimeDB', color: '#00D4FF' }, { label: 'Stripe', color: '#635BFF' }, { label: 'NestJS', color: '#E0234E' }, { label: 'Next.js 14', color: '#ffffff' }].map((t) => (
-                  <span key={t.label} className="flex items-center gap-1.5 text-xs font-semibold text-gray-400 px-3 py-1.5 rounded-full" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}>
-                    <span className="w-1.5 h-1.5 rounded-full" style={{ background: t.color }} aria-hidden="true" />
-                    {t.label}
-                  </span>
-                ))}
-              </div>
-            </article>
+
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
             {[
-              { icon: Scale,     color: '#8B5CF6', bg: 'rgba(139,92,246,0.12)', cols: 'md:col-span-5', title: 'Resolución de disputas',  desc: '¿Conflicto? El admin revisa evidencias y decide si reembolsar o liberar fondos.' },
-              { icon: Bell,      color: '#00D4FF', bg: 'rgba(0,212,255,0.12)',  cols: 'md:col-span-5', title: 'Notificaciones real-time', desc: 'Email + in-app alerts en cada cambio de estado. Nunca te perderás un hito.' },
-              { icon: Lock,      color: '#FCD34D', bg: 'rgba(251,191,36,0.12)', cols: 'md:col-span-4', title: 'Auth JWT seguro',           desc: 'bcrypt + tokens de 7 días. Roles diferenciados: Buyer, Seller y Admin.' },
-              { icon: Zap,       color: '#4ADE80', bg: 'rgba(74,222,128,0.12)', cols: 'md:col-span-4', title: 'Fee transparente',          desc: 'Solo 5% del monto, calculado antes de confirmar. Sin letra pequeña.' },
-              { icon: Briefcase, color: '#F87171', bg: 'rgba(248,113,113,0.12)', cols: 'md:col-span-4', title: 'API REST completa',         desc: 'Swagger Docs en vivo. Integra YULRRED en tu app con pocos endpoints.' },
-            ].map((feat) => {
-              const Icon = feat.icon;
+              { icon: ShieldCheck, color: '#00D4FF', bg: 'rgba(0,212,255,0.10)', title: 'Tu dinero está protegido',      desc: 'Nadie toca el dinero hasta que el trato se complete. Ni el comprador ni el vendedor.' },
+              { icon: CheckCircle2, color: '#4ADE80', bg: 'rgba(74,222,128,0.10)', title: 'Sin estafas',                   desc: 'El vendedor no puede desaparecer con el dinero. El comprador no puede negar un servicio entregado.' },
+              { icon: Zap,          color: '#FCD34D', bg: 'rgba(251,191,36,0.10)', title: 'Rápido y sin trámites',          desc: 'Crea un trato en menos de 2 minutos. Sin papeles, sin abogados, sin burocracia.' },
+              { icon: CreditCard,   color: '#635BFF', bg: 'rgba(99,91,255,0.10)',  title: 'Pago seguro con tarjeta',       desc: 'Tu información de pago nunca la tocamos. Usamos Stripe, el estándar más seguro del mundo.' },
+              { icon: Scale,        color: '#8B5CF6', bg: 'rgba(139,92,246,0.10)', title: 'Resolución de conflictos',      desc: 'Si algo sale mal, un mediador humano revisa el caso y toma una decisión justa.' },
+              { icon: Lock,         color: '#F87171', bg: 'rgba(248,113,113,0.10)', title: 'Acceso solo para ti',           desc: 'Tu cuenta está protegida con contraseña cifrada y sesiones seguras.' },
+            ].map((b, i) => {
+              const Icon = b.icon;
               return (
-                <article key={feat.title} className={`glass p-6 ${feat.cols} hover:-translate-y-1 transition-all duration-300`} aria-labelledby={`feat-${feat.title.replace(/\s+/g, '-')}`}>
-                  <div className="w-11 h-11 rounded-xl flex items-center justify-center mb-4" style={{ background: feat.bg }} aria-hidden="true">
-                    <Icon className="w-5 h-5" style={{ color: feat.color }} />
+                <article
+                  key={b.title}
+                  className={`glass p-6 reveal delay-${(i % 3) + 1} hover:-translate-y-1 transition-all duration-300`}
+                  aria-labelledby={`ben-${i}`}
+                >
+                  <div className="w-11 h-11 rounded-xl flex items-center justify-center mb-4" style={{ background: b.bg }} aria-hidden="true">
+                    <Icon className="w-5 h-5" style={{ color: b.color }} />
                   </div>
-                  <h3 id={`feat-${feat.title.replace(/\s+/g, '-')}`} className="font-bold text-base mb-2">{feat.title}</h3>
-                  <p className="text-gray-500 text-sm leading-relaxed">{feat.desc}</p>
+                  <h3 id={`ben-${i}`} className="font-bold text-sm mb-2" style={sg}>{b.title}</h3>
+                  <p className="text-gray-500 text-sm leading-relaxed">{b.desc}</p>
                 </article>
               );
             })}
@@ -243,118 +318,123 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* BEFORE/AFTER */}
-      <section className="py-24 px-6" style={{ background: 'rgba(13,13,22,0.7)', borderTop: '1px solid rgba(255,255,255,0.05)', borderBottom: '1px solid rgba(255,255,255,0.05)' }} aria-labelledby="compare-heading">
-        <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-16">
-            <div className="badge badge-cyan mb-5">Comparación</div>
-            <h2 className="font-extrabold mb-4 tracking-tight" id="compare-heading" style={headingLg}>
-              Tú solo haces clic.<br /><span className="text-gradient">Nosotros hacemos el resto.</span>
+      {/* ── ROLES ──────────────────────────────────────── */}
+      <section className="py-20 px-6" aria-labelledby="roles-h">
+        <div className="max-w-5xl mx-auto">
+          <div className="text-center mb-14 reveal">
+            <h2
+              className="font-extrabold mb-3"
+              id="roles-h"
+              style={{ ...sg, fontSize: 'clamp(26px, 4vw, 44px)', letterSpacing: '-0.025em' }}
+            >
+              ¿Quién usa YULRRED?
             </h2>
+            <p className="text-gray-400 text-lg max-w-md mx-auto">
+              Cualquier persona que quiera hacer una transacción segura online.
+            </p>
           </div>
-          <div className="grid md:grid-cols-2 gap-6 mb-12">
-            <div className="glass p-7 space-y-3" style={{ borderLeft: '3px solid rgba(239,68,68,0.45)' }}>
-              <div className="flex items-center gap-3 mb-4">
-                <div className="p-2.5 rounded-xl" style={{ background: 'rgba(239,68,68,0.12)' }}><Scale className="w-5 h-5 text-red-400" aria-hidden="true" /></div>
-                <div><p className="font-bold text-white" style={spaceGrotesk}>Sin YULRRED</p><p className="text-xs text-gray-500">El caos de siempre</p></div>
-              </div>
-              {['Contratos PDF de 20 páginas', 'Transferencias sin garantía', 'Sin verificación del producto', 'Fraudes y estafas sin resolver', 'Meses esperando resolución legal', 'Cada parte por su cuenta'].map((item) => (
-                <div key={item} className="flex items-center gap-2.5 text-sm text-gray-500">
-                  <CheckCircle2 className="w-4 h-4 text-red-500 shrink-0" aria-hidden="true" />{item}
-                </div>
-              ))}
-            </div>
-            <div className="glass p-7 space-y-3" style={{ borderLeft: '3px solid rgba(0,212,255,0.5)', background: 'rgba(0,212,255,0.02)' }}>
-              <div className="flex items-center gap-3 mb-4">
-                <div className="p-2.5 rounded-xl" style={{ background: 'rgba(0,212,255,0.12)' }}><ShieldCheck className="w-5 h-5 text-[#00D4FF]" aria-hidden="true" /></div>
-                <div><p className="font-bold text-white" style={spaceGrotesk}>Con YULRRED</p><p className="text-xs text-[#00D4FF]">Simple y seguro</p></div>
-              </div>
-              {['Acuerdo creado en 2 minutos', 'Fondos protegidos en custodia Stripe', 'Verificación de entrega incluida', 'Resolución de disputas por admin', 'Decisiones en horas, no meses', 'Todo gestionado en un solo lugar'].map((item) => (
-                <div key={item} className="flex items-center gap-2.5 text-sm text-gray-300">
-                  <CheckCircle2 className="w-4 h-4 text-[#00D4FF] shrink-0" aria-hidden="true" />{item}
-                </div>
-              ))}
-            </div>
-          </div>
-          <div className="grid sm:grid-cols-3 gap-4">
+
+          <div className="grid sm:grid-cols-3 gap-5">
             {[
-              { role: 'Comprador (Buyer)', color: '#00D4FF', bg: 'rgba(0,212,255,0.10)', border: 'rgba(0,212,255,0.3)', icon: CreditCard, steps: ['Crea el trato en minutos', 'Fondea el pago con Stripe', 'Confirma recepción del producto'] },
-              { role: 'Admin YULRRED', color: '#8B5CF6', bg: 'rgba(139,92,246,0.10)', border: 'rgba(139,92,246,0.4)', icon: Users, steps: ['Supervisa la plataforma', 'Verifica entregas en disputa', 'Resuelve conflictos imparcialmente'], highlight: true },
-              { role: 'Vendedor (Seller)', color: '#4ADE80', bg: 'rgba(74,222,128,0.10)', border: 'rgba(74,222,128,0.3)', icon: Package, steps: ['Acepta el trato seguro', 'Entrega el producto/servicio', 'Recibe el pago automático'] },
-            ].map(({ role, color, bg, border, icon: Icon, steps, highlight }) => (
-              <div key={role} className={`glass p-6 space-y-4 ${highlight ? 'shadow-glow-sm' : ''}`} style={{ borderLeft: `3px solid ${border}` }}>
-                <div className="w-11 h-11 rounded-xl flex items-center justify-center" style={{ background: bg }}><Icon className="w-5 h-5" style={{ color }} aria-hidden="true" /></div>
-                <div><p className="font-bold text-sm" style={{ ...spaceGrotesk, color }}>{role}</p>{highlight && <p className="text-[10px] text-gray-500 mt-0.5">Gestiona todo el proceso</p>}</div>
-                <ul className="space-y-2">{steps.map((s, i) => (<li key={s} className="flex items-start gap-2 text-sm text-gray-400"><span className="text-[10px] font-bold mt-0.5 shrink-0" style={{ color }}>{i + 1}.</span>{s}</li>))}</ul>
+              {
+                color: '#00D4FF', bg: 'rgba(0,212,255,0.08)', border: 'rgba(0,212,255,0.25)',
+                title: 'Comprador',
+                subtitle: 'Paga con seguridad',
+                points: ['Crea el trato', 'Paga y espera la entrega', 'Confirma y el vendedor cobra'],
+              },
+              {
+                color: '#8B5CF6', bg: 'rgba(139,92,246,0.08)', border: 'rgba(139,92,246,0.35)',
+                title: 'Vendedor / Freelancer',
+                subtitle: 'Cobra sin riesgo',
+                points: ['Acepta el trato', 'Entrega tu producto o servicio', 'Recibe el pago automáticamente'],
+              },
+              {
+                color: '#4ADE80', bg: 'rgba(74,222,128,0.08)', border: 'rgba(74,222,128,0.25)',
+                title: 'Ambas partes ganan',
+                subtitle: 'Nadie pierde',
+                points: ['El comprador no paga por nada', 'El vendedor siempre cobra', 'Conflictos resueltos con imparcialidad'],
+              },
+            ].map((r, i) => (
+              <div
+                key={r.title}
+                className={`glass p-7 reveal delay-${i + 1} hover:-translate-y-1 transition-all duration-300`}
+                style={{ borderLeft: `3px solid ${r.border}`, background: r.bg }}
+              >
+                <p className="font-extrabold mb-1" style={{ ...sg, color: r.color }}>{r.title}</p>
+                <p className="text-xs text-gray-500 mb-5">{r.subtitle}</p>
+                <ul className="space-y-3">
+                  {r.points.map((p, j) => (
+                    <li key={p} className="flex items-start gap-3 text-sm text-gray-300">
+                      <span className="w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold shrink-0 mt-0.5" style={{ background: r.bg, color: r.color, border: `1px solid ${r.border}` }}>{j + 1}</span>
+                      {p}
+                    </li>
+                  ))}
+                </ul>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* SECURITY */}
-      <section className="py-24 px-6" aria-labelledby="security-heading">
-        <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-16">
-            <div className="badge badge-cyan mb-5">Infraestructura</div>
-            <h2 className="font-extrabold mb-4 tracking-tight" id="security-heading" style={headingLg}>Seguridad que no se negocia</h2>
-            <p className="text-gray-400 text-lg max-w-xl mx-auto leading-relaxed">Construido sobre los pilares más confiables del ecosistema cloud moderno.</p>
+      {/* ── PRICING ────────────────────────────────────── */}
+      <section
+        className="py-20 px-6 scroll-mt-20"
+        id="precios"
+        aria-labelledby="pricing-h"
+        style={{ background: 'rgba(13,13,22,0.6)', borderTop: '1px solid rgba(255,255,255,0.05)' }}
+      >
+        <div className="max-w-3xl mx-auto">
+          <div className="text-center mb-14 reveal">
+            <div className="badge badge-cyan mb-4">Precios</div>
+            <h2
+              className="font-extrabold mb-3"
+              id="pricing-h"
+              style={{ ...sg, fontSize: 'clamp(26px, 4vw, 44px)', letterSpacing: '-0.025em' }}
+            >
+              Sin sorpresas
+            </h2>
+            <p className="text-gray-400 text-lg">Un precio. Simple. Solo pagas si el trato se cierra.</p>
           </div>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {[
-              { icon: Globe,      color: '#00D4FF', bg: 'rgba(0,212,255,0.10)',   title: 'SpacetimeDB Cloud',     desc: 'Base de datos real-time con módulo C# WASM. Reducers atómicos garantizan consistencia en cada transacción.' },
-              { icon: CreditCard, color: '#635BFF', bg: 'rgba(99,91,255,0.10)',   title: 'Stripe PaymentIntents', desc: 'Estándar PCI-DSS. Números de tarjeta nunca tocan nuestros servidores. Webhooks con firma HMAC.' },
-              { icon: Lock,       color: '#8B5CF6', bg: 'rgba(139,92,246,0.10)',  title: 'JWT + bcrypt',          desc: 'Tokens firmados con 256-bit secret. Contraseñas con hash bcrypt. Guardias de ruta por rol.' },
-              { icon: Zap,        color: '#4ADE80', bg: 'rgba(74,222,128,0.10)',  title: 'Vercel Edge Network',   desc: 'Frontend y backend en la CDN de Vercel. SSL automático, serverless functions escalables a cero.' },
-              { icon: Scale,      color: '#FCD34D', bg: 'rgba(251,191,36,0.10)',  title: 'Disputas supervisadas', desc: 'Resolución siempre por un humano. El admin puede reembolsar o liberar fondos con evidencia verificada.' },
-              { icon: Github,     color: '#E0E0E0', bg: 'rgba(224,224,224,0.06)', title: 'Open Source',           desc: 'Código público en GitHub. Auditable por la comunidad. Sin cajas negras ni procesos ocultos.' },
-            ].map((sec) => {
-              const Icon = sec.icon;
-              return (
-                <article key={sec.title} className="glass p-6 flex gap-4 items-start hover:-translate-y-1 transition-all duration-300" aria-labelledby={`sec-${sec.title.replace(/\s+/g, '-')}`}>
-                  <div className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0" style={{ background: sec.bg }} aria-hidden="true">
-                    <Icon className="w-6 h-6" style={{ color: sec.color }} />
-                  </div>
-                  <div>
-                    <h3 id={`sec-${sec.title.replace(/\s+/g, '-')}`} className="font-bold text-sm mb-1.5">{sec.title}</h3>
-                    <p className="text-gray-500 text-sm leading-relaxed">{sec.desc}</p>
-                  </div>
-                </article>
-              );
-            })}
-          </div>
-        </div>
-      </section>
 
-      {/* PRICING */}
-      <section className="py-24 px-6" id="precios" aria-labelledby="pricing-heading" style={{ background: 'rgba(13,13,22,0.65)' }}>
-        <div className="max-w-4xl mx-auto">
-          <div className="text-center mb-16">
-            <div className="badge badge-cyan mb-5">Precios</div>
-            <h2 className="font-extrabold mb-4 tracking-tight" id="pricing-heading" style={headingLg}>Simple, justo, transparente</h2>
-            <p className="text-gray-400 text-lg">Sin planes confusos. Un único modelo de comisión por éxito.</p>
-          </div>
-          <div className="glass p-8 md:p-12 relative overflow-hidden" style={{ borderColor: 'rgba(0,212,255,0.22)', boxShadow: '0 0 60px rgba(0,212,255,0.08)' }}>
-            <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 px-6 py-2 text-xs font-bold uppercase tracking-widest" style={{ background: 'linear-gradient(135deg, #00D4FF, #8B5CF6)', borderRadius: '100px', color: '#000' }}>
-              Único modelo disponible
-            </div>
-            <div className="absolute top-0 left-0 w-64 h-64 rounded-full blur-3xl pointer-events-none" style={{ background: 'rgba(0,212,255,0.05)' }} aria-hidden="true" />
-            <div className="absolute bottom-0 right-0 w-64 h-64 rounded-full blur-3xl pointer-events-none" style={{ background: 'rgba(139,92,246,0.05)' }} aria-hidden="true" />
-            <div className="relative z-10 grid md:grid-cols-2 gap-12 items-center">
+          <div
+            className="glass p-8 md:p-12 reveal"
+            style={{ borderColor: 'rgba(0,212,255,0.20)', boxShadow: '0 0 60px rgba(0,212,255,0.06)' }}
+          >
+            <div className="grid md:grid-cols-2 gap-10 items-center">
               <div className="text-center md:text-left">
-                <div className="inline-block font-extrabold text-gradient mb-3" style={{ ...spaceGrotesk, fontSize: '88px', letterSpacing: '-0.04em', lineHeight: 1 }} aria-label="5 por ciento de comisión">5%</div>
-                <p className="text-gray-400 mb-4 leading-relaxed">por deal completado<br />Solo pagas si el trato se cierra</p>
-                <div className="glass-sm px-5 py-4 text-sm text-gray-400 mb-8" role="note">
-                  Deal de <strong className="text-white">$1,000</strong> → Seller recibe <strong className="text-[#4ADE80]">$950</strong> · YULRRED gana <strong className="text-[#00D4FF]">$50</strong>
+                <div
+                  className="inline-block font-extrabold text-gradient mb-2"
+                  style={{ ...sg, fontSize: 'clamp(64px,10vw,96px)', letterSpacing: '-0.04em', lineHeight: 1 }}
+                  aria-label="5 por ciento"
+                >
+                  5%
                 </div>
-                <Link href="/register" className="btn-glow px-8 py-4 text-base gap-2.5">
-                  <ShieldCheck className="w-5 h-5" aria-hidden="true" />Comenzar gratis
+                <p className="text-gray-400 mb-2 text-lg">por trato completado</p>
+                <p className="text-sm text-gray-600 mb-8">Si el trato no se cierra, no cobras nada.</p>
+
+                <div className="glass-sm px-5 py-4 text-sm text-gray-400 mb-8" role="note">
+                  Ejemplo: trato de <strong className="text-white">$1,000</strong> →
+                  el vendedor recibe <strong className="text-[#4ADE80]">$950</strong>
+                </div>
+
+                <Link href="/register" className="btn-glow w-full md:w-auto px-8 py-4 text-base justify-center">
+                  <ShieldCheck className="w-5 h-5" aria-hidden="true" />
+                  Empezar gratis
                 </Link>
               </div>
-              <ul className="space-y-3.5" role="list">
-                {['Deals ilimitados', 'Stripe PaymentIntents incluido', 'Notificaciones email + in-app', 'Resolución de disputas por admin', 'API REST + Swagger Docs', 'Dashboard con estadísticas en tiempo real', 'Código open source — auditable'].map((item) => (
-                  <li key={item} className="flex items-center gap-3 text-sm text-gray-300" role="listitem">
-                    <CheckCircle2 className="w-4 h-4 text-[#00D4FF] shrink-0" aria-hidden="true" />{item}
+
+              <ul className="space-y-4" role="list">
+                {[
+                  'Tratos ilimitados',
+                  'Pago seguro incluido',
+                  'Notificaciones en tiempo real',
+                  'Resolución de disputas',
+                  'Panel de control completo',
+                  'Sin mensualidad ni contrato',
+                ].map((item) => (
+                  <li key={item} className="flex items-center gap-3 text-gray-300" role="listitem">
+                    <CheckCircle2 className="w-4 h-4 text-[#00D4FF] shrink-0" aria-hidden="true" />
+                    <span className="text-sm">{item}</span>
                   </li>
                 ))}
               </ul>
@@ -363,29 +443,61 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* TESTIMONIALS */}
-      <section className="py-24 px-6" aria-labelledby="testimonials-heading">
-        <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-16">
-            <div className="badge badge-purple mb-5">Testimonios</div>
-            <h2 className="font-extrabold mb-4 tracking-tight" id="testimonials-heading" style={headingLg}>Lo que dicen nuestros usuarios</h2>
+      {/* ── TESTIMONIALS ───────────────────────────────── */}
+      <section className="py-20 px-6" aria-labelledby="testi-h">
+        <div className="max-w-5xl mx-auto">
+          <div className="text-center mb-14 reveal">
+            <div className="badge badge-purple mb-4">Testimonios</div>
+            <h2
+              className="font-extrabold mb-3"
+              id="testi-h"
+              style={{ ...sg, fontSize: 'clamp(26px, 4vw, 44px)', letterSpacing: '-0.025em' }}
+            >
+              Lo que dicen quienes ya lo usan
+            </h2>
           </div>
-          <div className="grid md:grid-cols-3 gap-4">
+
+          <div className="grid md:grid-cols-3 gap-5">
             {[
-              { quote: 'Pagué a un freelancer internacional por primera vez sin miedo. YULRRED retuvo los fondos hasta que entregó el diseño. Exactamente como prometido.', name: 'María A.', role: 'Fundadora · AgenciaCreativa.co', initials: 'MA' },
-              { quote: 'Como developer freelance, siempre temía los no-pagos. Con YULRRED sé que los fondos ya están bloqueados antes de empezar a trabajar. Un cambio total.', name: 'Carlos R.', role: 'Fullstack Developer · Freelance', initials: 'CR' },
-              { quote: 'Tuvimos una disputa y el admin resolvió en menos de 24 horas con total transparencia. El proceso fue justo y documentado. Confianza total en la plataforma.', name: 'Laura V.', role: 'E-commerce Manager · TiendaOnline.mx', initials: 'LV' },
-            ].map((t) => (
-              <article key={t.name} className="glass p-6 flex flex-col justify-between hover:-translate-y-1 transition-all duration-300" aria-labelledby={`testi-${t.initials}`}>
+              {
+                quote: 'Pagué a un diseñador por primera vez sin miedo. El dinero quedó bloqueado hasta que me entregó todo. Exactamente como prometió.',
+                name: 'María A.', role: 'Dueña de negocio', initials: 'MA',
+              },
+              {
+                quote: 'Como freelancer, siempre temía que no me pagaran. Con YULRRED el dinero ya está listo antes de empezar. Total tranquilidad.',
+                name: 'Carlos R.', role: 'Desarrollador independiente', initials: 'CR',
+              },
+              {
+                quote: 'Hubo un malentendido con un proveedor. El mediador de YULRRED lo resolvió en 24 horas, de forma justa. Muy profesional.',
+                name: 'Laura V.', role: 'Gerente de tienda online', initials: 'LV',
+              },
+            ].map((t, i) => (
+              <article
+                key={t.name}
+                className={`glass p-6 flex flex-col justify-between reveal delay-${i + 1} hover:-translate-y-1 transition-all duration-300`}
+              >
                 <div>
                   <div className="flex gap-1 mb-4" aria-label="5 estrellas">
-                    {[...Array(5)].map((_, i) => (<Star key={i} className="w-4 h-4 text-amber-400 fill-amber-400" aria-hidden="true" />))}
+                    {[...Array(5)].map((_, j) => (
+                      <Star key={j} className="w-4 h-4 text-amber-400 fill-amber-400" aria-hidden="true" />
+                    ))}
                   </div>
-                  <blockquote><p className="text-gray-400 text-sm leading-relaxed mb-6">&ldquo;{t.quote}&rdquo;</p></blockquote>
+                  <blockquote>
+                    <p className="text-gray-400 text-sm leading-relaxed mb-6">&ldquo;{t.quote}&rdquo;</p>
+                  </blockquote>
                 </div>
                 <footer className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold shrink-0" style={{ background: 'linear-gradient(135deg, #00D4FF, #8B5CF6)', color: '#000' }} aria-hidden="true">{t.initials}</div>
-                  <div><p id={`testi-${t.initials}`} className="text-sm font-bold">{t.name}</p><p className="text-xs text-gray-500 mt-0.5">{t.role}</p></div>
+                  <div
+                    className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold shrink-0"
+                    style={{ background: 'linear-gradient(135deg, #00D4FF, #8B5CF6)', color: '#000' }}
+                    aria-hidden="true"
+                  >
+                    {t.initials}
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold">{t.name}</p>
+                    <p className="text-xs text-gray-500 mt-0.5">{t.role}</p>
+                  </div>
                 </footer>
               </article>
             ))}
@@ -393,73 +505,104 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* CTA */}
-      <section className="py-24 px-6 text-center" aria-labelledby="cta-heading">
-        <div className="max-w-3xl mx-auto">
-          <div className="glass p-12 md:p-16 relative overflow-hidden" style={{ borderColor: 'rgba(0,212,255,0.20)', boxShadow: '0 0 80px rgba(0,212,255,0.07)' }}>
-            <div className="absolute top-0 left-0 w-72 h-72 rounded-full blur-3xl pointer-events-none" style={{ background: 'rgba(0,212,255,0.07)' }} aria-hidden="true" />
-            <div className="absolute bottom-0 right-0 w-72 h-72 rounded-full blur-3xl pointer-events-none" style={{ background: 'rgba(139,92,246,0.07)' }} aria-hidden="true" />
+      {/* ── CTA ────────────────────────────────────────── */}
+      <section className="py-20 px-6 text-center" aria-labelledby="cta-h">
+        <div className="max-w-2xl mx-auto reveal">
+          <div
+            className="glass p-10 md:p-16 relative overflow-hidden"
+            style={{ borderColor: 'rgba(0,212,255,0.18)', boxShadow: '0 0 80px rgba(0,212,255,0.06)' }}
+          >
+            <div className="absolute top-0 left-0 w-64 h-64 rounded-full blur-3xl pointer-events-none" style={{ background: 'rgba(0,212,255,0.06)' }} aria-hidden="true" />
+            <div className="absolute bottom-0 right-0 w-64 h-64 rounded-full blur-3xl pointer-events-none" style={{ background: 'rgba(139,92,246,0.06)' }} aria-hidden="true" />
             <div className="relative z-10">
-              <div className="badge badge-purple mx-auto mb-6">Empieza hoy</div>
-              <h2 className="font-extrabold mb-4 tracking-tight" id="cta-heading" style={{ ...spaceGrotesk, fontSize: 'clamp(28px, 5vw, 50px)', letterSpacing: '-0.025em' }}>
-                Tu próximo trato,<br /><span className="text-gradient">custodiado por código</span>
+              <h2
+                className="font-extrabold mb-4"
+                id="cta-h"
+                style={{ ...sg, fontSize: 'clamp(24px, 4.5vw, 46px)', letterSpacing: '-0.025em' }}
+              >
+                ¿Listo para hacer<br />
+                <span className="text-gradient">tratos sin riesgos?</span>
               </h2>
-              <p className="text-gray-400 text-lg mb-10 max-w-lg mx-auto leading-relaxed">
-                Crea tu cuenta en menos de 2 minutos. Protege tus transacciones con la misma tecnología que usan los equipos de Silicon Valley.
+              <p className="text-gray-400 text-lg mb-8 max-w-md mx-auto leading-relaxed">
+                Crea tu cuenta en menos de 2 minutos. Gratis para empezar.
               </p>
-              <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-                <Link href="/register" className="btn-glow px-10 py-4 text-base gap-2.5">
-                  <ShieldCheck className="w-5 h-5" aria-hidden="true" />Crear cuenta gratis
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+                <Link href="/register" className="btn-glow w-full sm:w-auto px-10 py-4 text-base">
+                  <ShieldCheck className="w-5 h-5" aria-hidden="true" />
+                  Crear cuenta gratis
                 </Link>
-                <Link href="/login" className="btn-ghost px-10 py-4 text-base">Iniciar sesión</Link>
+                <Link href="/login" className="btn-ghost w-full sm:w-auto px-10 py-4 text-base">
+                  Ya tengo cuenta
+                </Link>
               </div>
-              <p className="text-gray-600 text-sm mt-6">Demo: buyer@example.com / Buyer@123</p>
+              <p className="text-gray-600 text-xs mt-5">Demo: buyer@example.com · Buyer@123</p>
             </div>
           </div>
         </div>
       </section>
 
-      {/* FOOTER */}
-      <footer className="border-t py-12 px-6" style={{ borderColor: 'rgba(255,255,255,0.06)' }} role="contentinfo">
-        <div className="max-w-6xl mx-auto">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-12">
-            <div className="col-span-2">
-              <Link href="/" className="text-2xl font-extrabold tracking-tight text-gradient" style={spaceGrotesk}>YULRRED</Link>
-              <p className="text-gray-500 text-sm mt-3 mb-4 max-w-xs leading-relaxed">
-                Plataforma escrow SaaS para transacciones seguras entre compradores y vendedores en el mundo digital.
+      {/* ── FOOTER ─────────────────────────────────────── */}
+      <footer
+        className="border-t py-12 px-6"
+        style={{ borderColor: 'rgba(255,255,255,0.06)' }}
+        role="contentinfo"
+      >
+        <div className="max-w-5xl mx-auto">
+          <div className="flex flex-col md:flex-row justify-between gap-10 mb-10">
+            {/* Brand */}
+            <div className="max-w-xs">
+              <Link href="/" className="text-xl font-extrabold tracking-tight text-gradient" style={sg}>
+                YULRRED
+              </Link>
+              <p className="text-gray-500 text-sm mt-3 leading-relaxed">
+                Plataforma de custodia online para que compradores y vendedores hagan tratos seguros, sin importar dónde estén.
               </p>
-              <div className="flex flex-wrap gap-2">
-                {[{ label: 'NestJS', color: '#E0234E' }, { label: 'Next.js 14', color: '#ffffff' }, { label: 'SpacetimeDB', color: '#00D4FF' }, { label: 'Stripe', color: '#635BFF' }].map((t) => (
-                  <span key={t.label} className="flex items-center gap-1.5 text-xs text-gray-500 px-2.5 py-1 rounded-full" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}>
-                    <span className="w-1.5 h-1.5 rounded-full" style={{ background: t.color }} aria-hidden="true" />{t.label}
-                  </span>
-                ))}
-              </div>
             </div>
-            <nav aria-label="Recursos">
-              <h4 className="text-sm font-bold text-white mb-4" style={spaceGrotesk}>Recursos</h4>
-              <ul className="space-y-2.5">
-                {[{ label: 'Cómo funciona', href: '#como-funciona' }, { label: 'Características', href: '#features' }, { label: 'Precios', href: '#precios' }, { label: 'API Docs', href: 'https://yulrred-api.vercel.app/api/docs', external: true }, { label: 'GitHub', href: 'https://github.com/cloud-assa/YULRRED', external: true }].map((link) => (
-                  <li key={link.label}><a href={link.href} className="text-sm text-gray-500 hover:text-[#00D4FF] transition-colors" {...(link.external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}>{link.label}</a></li>
-                ))}
-              </ul>
-            </nav>
-            <nav aria-label="Cuenta">
-              <h4 className="text-sm font-bold text-white mb-4" style={spaceGrotesk}>Cuenta</h4>
-              <ul className="space-y-2.5">
-                {[{ label: 'Registrarse', href: '/register' }, { label: 'Iniciar sesión', href: '/login' }, { label: 'Dashboard', href: '/dashboard' }, { label: 'Mis deals', href: '/deals' }, { label: 'Notificaciones', href: '/notifications' }].map((link) => (
-                  <li key={link.label}><Link href={link.href} className="text-sm text-gray-500 hover:text-[#00D4FF] transition-colors">{link.label}</Link></li>
-                ))}
-              </ul>
-            </nav>
+
+            {/* Links */}
+            <div className="grid grid-cols-2 gap-10">
+              <nav aria-label="Plataforma">
+                <h4 className="text-sm font-bold text-white mb-4" style={sg}>Plataforma</h4>
+                <ul className="space-y-3">
+                  {[
+                    { label: 'Cómo funciona', href: '#como-funciona' },
+                    { label: 'Beneficios',    href: '#beneficios' },
+                    { label: 'Precios',       href: '#precios' },
+                  ].map((l) => (
+                    <li key={l.label}>
+                      <a href={l.href} className="text-sm text-gray-500 hover:text-[#00D4FF] transition-colors">{l.label}</a>
+                    </li>
+                  ))}
+                </ul>
+              </nav>
+              <nav aria-label="Mi cuenta">
+                <h4 className="text-sm font-bold text-white mb-4" style={sg}>Mi cuenta</h4>
+                <ul className="space-y-3">
+                  {[
+                    { label: 'Registrarse',   href: '/register' },
+                    { label: 'Iniciar sesión', href: '/login' },
+                    { label: 'Mis tratos',    href: '/deals' },
+                    { label: 'Dashboard',     href: '/dashboard' },
+                  ].map((l) => (
+                    <li key={l.label}>
+                      <Link href={l.href} className="text-sm text-gray-500 hover:text-[#00D4FF] transition-colors">{l.label}</Link>
+                    </li>
+                  ))}
+                </ul>
+              </nav>
+            </div>
           </div>
-          <div className="flex flex-col md:flex-row items-center justify-between gap-3 pt-6 text-xs text-gray-600" style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+
+          {/* Bottom bar */}
+          <div
+            className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-6 text-xs text-gray-600"
+            style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}
+          >
             <span>© {new Date().getFullYear()} YULRRED. Todos los derechos reservados.</span>
-            <div className="flex items-center gap-2" role="status" aria-live="polite">
+            <div className="flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-emerald-400" style={{ boxShadow: '0 0 6px rgba(74,222,128,0.5)' }} aria-hidden="true" />
-              <span>Todos los sistemas operativos</span>
+              <span>Sistemas en línea</span>
             </div>
-            <span>NestJS · Next.js 14 · SpacetimeDB · Vercel · Stripe</span>
           </div>
         </div>
       </footer>
