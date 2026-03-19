@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { getSession } from 'next-auth/react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -7,13 +8,13 @@ export const api = axios.create({
   headers: { 'Content-Type': 'application/json' },
 });
 
-// Token is set by AuthSync component (providers.tsx) whenever session changes.
-// Using a module-level variable avoids an async getSession() HTTP call per request.
-let _authToken: string | null = null;
-export function setAuthToken(token: string | null) { _authToken = token; }
-
-api.interceptors.request.use((config) => {
-  if (_authToken) config.headers.Authorization = `Bearer ${_authToken}`;
+// getSession() reads the NextAuth cookie — guaranteed to be set when pages
+// guard their useEffect with `if (status !== 'authenticated') return;`
+api.interceptors.request.use(async (config) => {
+  const session = await getSession();
+  if ((session as any)?.accessToken) {
+    config.headers.Authorization = `Bearer ${(session as any).accessToken}`;
+  }
   return config;
 });
 

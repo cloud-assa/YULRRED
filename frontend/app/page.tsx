@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { ShieldCheck, PenLine, CreditCard, Package, CheckCircle2, Scale, Mail, BarChart3, Lock, Zap, Briefcase, Sparkles, ArrowRight } from 'lucide-react';
+import { ShieldCheck, PenLine, CreditCard, Package, CheckCircle2, Scale, Mail, BarChart3, Lock, Zap, Briefcase, Sparkles, ArrowRight, Truck, ClipboardCheck, HeadphonesIcon, BadgeCheck, MousePointerClick, FileX, Star } from 'lucide-react';
 
 export default function LandingPage() {
   return (
@@ -114,6 +114,165 @@ export default function LandingPage() {
               </div>
             );
           })}
+        </div>
+      </section>
+
+      {/* We Handle Everything */}
+      <section className="py-24 border-y border-white/[0.06]" style={{ background: 'rgba(15,15,26,0.5)' }}>
+        <div className="max-w-7xl mx-auto px-6">
+          {/* Header */}
+          <div className="text-center mb-16">
+            <div className="inline-flex items-center gap-2 glass-sm px-4 py-1.5 text-sm text-emerald-300 mb-6 border-emerald-500/20">
+              <BadgeCheck className="w-3.5 h-3.5 text-emerald-400" />
+              Servicio completamente gestionado
+            </div>
+            <h2 className="text-3xl md:text-5xl font-extrabold mb-5 leading-tight">
+              Tú solo haces clic.<br />
+              <span className="text-gradient">Nosotros hacemos el resto.</span>
+            </h2>
+            <p className="text-gray-400 max-w-2xl mx-auto text-lg leading-relaxed">
+              Olvídate de contratos, intermediarios y papeleos infinitos.
+              SecureDeal gestiona el proceso completo — desde el pago hasta la entrega — con total transparencia.
+            </p>
+          </div>
+
+          {/* Main comparison */}
+          <div className="grid md:grid-cols-2 gap-6 mb-16">
+            {/* Before */}
+            <div className="glass p-7 space-y-4" style={{ borderLeft: '3px solid rgba(239,68,68,0.4)' }}>
+              <div className="flex items-center gap-3 mb-2">
+                <div className="p-2 rounded-xl bg-red-500/15 ring-1 ring-red-500/20">
+                  <FileX className="w-5 h-5 text-red-400" />
+                </div>
+                <div>
+                  <p className="font-bold text-white">Sin SecureDeal</p>
+                  <p className="text-xs text-gray-500">El caos de siempre</p>
+                </div>
+              </div>
+              {[
+                'Contratos PDF de 20 páginas',
+                'Transferencias bancarias sin garantía',
+                'Sin verificación del producto',
+                'Fraudes y estafas sin resolver',
+                'Meses esperando resolución legal',
+                'Cada parte por su cuenta',
+              ].map((item) => (
+                <div key={item} className="flex items-center gap-2.5 text-sm text-gray-500">
+                  <span className="text-red-500 shrink-0">✗</span>
+                  {item}
+                </div>
+              ))}
+            </div>
+
+            {/* After */}
+            <div className="glass p-7 space-y-4" style={{ borderLeft: '3px solid rgba(16,185,129,0.5)', background: 'rgba(16,185,129,0.02)' }}>
+              <div className="flex items-center gap-3 mb-2">
+                <div className="p-2 rounded-xl bg-emerald-500/15 ring-1 ring-emerald-500/20">
+                  <BadgeCheck className="w-5 h-5 text-emerald-400" />
+                </div>
+                <div>
+                  <p className="font-bold text-white">Con SecureDeal</p>
+                  <p className="text-xs text-emerald-500">Simple y seguro</p>
+                </div>
+              </div>
+              {[
+                'Acuerdo creado en 2 minutos',
+                'Fondos protegidos en garantía',
+                'Verificación del producto por el admin',
+                'Resolución de disputas incluida',
+                'Decisiones en horas, no meses',
+                'Todo bajo un solo techo',
+              ].map((item) => (
+                <div key={item} className="flex items-center gap-2.5 text-sm text-gray-300">
+                  <span className="text-emerald-400 shrink-0">✓</span>
+                  {item}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Process cards — who does what */}
+          <div className="mb-16">
+            <p className="text-center text-xs text-gray-500 uppercase tracking-widest font-semibold mb-8">
+              ¿Quién hace qué?
+            </p>
+            <div className="grid sm:grid-cols-3 gap-5">
+              {[
+                {
+                  role: 'Comprador',
+                  color: 'text-cyan-400', bg: 'bg-cyan-500/15', ring: 'ring-cyan-500/20',
+                  border: 'rgba(34,211,238,0.3)',
+                  steps: ['Crea el trato', 'Fondea el pago (1 clic)', 'Confirma la recepción'],
+                  icon: MousePointerClick,
+                },
+                {
+                  role: 'Admin SecureDeal',
+                  color: 'text-brand-400', bg: 'bg-brand-500/15', ring: 'ring-brand-500/20',
+                  border: 'rgba(124,58,237,0.4)',
+                  steps: ['Verifica el producto', 'Inspecciona la entrega', 'Resuelve cualquier disputa'],
+                  icon: ClipboardCheck,
+                  highlight: true,
+                },
+                {
+                  role: 'Vendedor',
+                  color: 'text-purple-400', bg: 'bg-purple-500/15', ring: 'ring-purple-500/20',
+                  border: 'rgba(168,85,247,0.3)',
+                  steps: ['Acepta el trato', 'Entrega el producto', 'Recibe el pago automático'],
+                  icon: Package,
+                },
+              ].map(({ role, color, bg, ring, border, steps, icon: Icon, highlight }) => (
+                <div
+                  key={role}
+                  className={`glass p-6 space-y-4 ${highlight ? 'shadow-glow-sm' : ''}`}
+                  style={{ borderLeft: `3px solid ${border}` }}
+                >
+                  <div className={`p-2.5 rounded-xl ${bg} ring-1 ${ring} w-fit`}>
+                    <Icon className={`w-5 h-5 ${color}`} />
+                  </div>
+                  <div>
+                    <p className={`font-bold text-sm ${color}`}>{role}</p>
+                    {highlight && <p className="text-[10px] text-gray-500 mt-0.5">El que gestiona todo</p>}
+                  </div>
+                  <ul className="space-y-2">
+                    {steps.map((s, i) => (
+                      <li key={s} className="flex items-start gap-2 text-sm text-gray-400">
+                        <span className={`text-[10px] font-bold mt-0.5 shrink-0 ${color}`}>{i + 1}.</span>
+                        {s}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Big statement */}
+          <div className="glass p-8 md:p-12 text-center space-y-6 relative overflow-hidden">
+            <div className="absolute inset-0 pointer-events-none" style={{ background: 'radial-gradient(ellipse 60% 50% at 50% 0%, rgba(124,58,237,0.08), transparent)' }} />
+            <div className="relative z-10">
+              <div className="flex items-center justify-center gap-2 mb-4">
+                {[...Array(5)].map((_, i) => <Star key={i} className="w-4 h-4 text-amber-400 fill-amber-400" />)}
+              </div>
+              <h3 className="text-2xl md:text-3xl font-bold text-white mb-3">
+                "Cerré el trato, hice clic en pagar, y ya. <br className="hidden md:block" />
+                El admin verificó todo y recibí mi dinero en minutos."
+              </h3>
+              <p className="text-gray-500 text-sm">— Usuario de SecureDeal</p>
+              <div className="flex flex-wrap items-center justify-center gap-4 mt-8">
+                {[
+                  { icon: Truck,            label: 'Verificación de entrega' },
+                  { icon: ClipboardCheck,   label: 'Inspección de producto' },
+                  { icon: HeadphonesIcon,   label: 'Soporte en disputas' },
+                  { icon: BadgeCheck,       label: 'Sin papeleos' },
+                ].map(({ icon: Icon, label }) => (
+                  <div key={label} className="glass-sm px-4 py-2.5 flex items-center gap-2 text-sm text-gray-300">
+                    <Icon className="w-4 h-4 text-brand-400 shrink-0" />
+                    {label}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 
