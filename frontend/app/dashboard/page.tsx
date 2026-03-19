@@ -13,16 +13,17 @@ import EmptyState from '@/components/ui/EmptyState';
 import { TrendingUp, Zap, ShoppingCart, Package, Info, Handshake, Bell, Plus } from 'lucide-react';
 
 export default function DashboardPage() {
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (status !== 'authenticated') return;
     usersApi.dashboard()
       .then(setData)
       .catch(() => toast.error('Error al cargar el panel'))
       .finally(() => setLoading(false));
-  }, []);
+  }, [status]);
 
   if (loading) {
     return (
