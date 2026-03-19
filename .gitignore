@@ -1,0 +1,14 @@
+node_modules/
+.vercel
+dist/
+dist-test/
+**/spacetime-module/bin/
+**/spacetime-module/obj/
+.env
+.env.local
+.env.production
+*.log
+.DS_Store
+.next/
+coverage/
+prisma/migrations/dev.db

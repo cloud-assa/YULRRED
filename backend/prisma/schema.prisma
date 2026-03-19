@@ -1,0 +1,113 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "rhel-openssl-1.0.x", "rhel-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum DealStatus {
+  PENDING
+  FUNDED
+  DELIVERED
+  COMPLETED
+  DISPUTED
+  CANCELLED
+  REFUNDED
+}
+
+enum DisputeStatus {
+  OPEN
+  UNDER_REVIEW
+  RESOLVED_BUYER
+  RESOLVED_SELLER
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String
+  password  String
+  role      Role     @default(USER)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  buyerDeals    Deal[]         @relation("BuyerDeals")
+  sellerDeals   Deal[]         @relation("SellerDeals")
+  disputes      Dispute[]
+  notifications Notification[]
+
+  @@map("users")
+}
+
+model Deal {
+  id          String     @id @default(cuid())
+  title       String
+  description String
+  amount      Float
+  feeAmount   Float
+  netAmount   Float
+  currency    String     @default("usd")
+  status      DealStatus @default(PENDING)
+  deadline    DateTime
+
+  buyerId  String
+  buyer    User   @relation("BuyerDeals", fields: [buyerId], references: [id])
+  sellerId String
+  seller   User   @relation("SellerDeals", fields: [sellerId], references: [id])
+
+  stripePaymentIntentId String?
+  stripeTransferId      String?
+
+  deliveryNote String?
+  deliveredAt  DateTime?
+  completedAt  DateTime?
+  refundedAt   DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  dispute       Dispute?
+  notifications Notification[]
+
+  @@map("deals")
+}
+
+model Dispute {
+  id         String        @id @default(cuid())
+  dealId     String        @unique
+  deal       Deal          @relation(fields: [dealId], references: [id])
+  raisedById String
+  raisedBy   User          @relation(fields: [raisedById], references: [id])
+  reason     String
+  evidence   String?
+  status     DisputeStatus @default(OPEN)
+  resolution String?
+  resolvedAt DateTime?
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+
+  @@map("disputes")
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  dealId    String?
+  deal      Deal?    @relation(fields: [dealId], references: [id])
+  type      String
+  title     String
+  message   String
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@map("notifications")
+}
