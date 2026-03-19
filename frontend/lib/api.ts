@@ -3,17 +3,20 @@ import { getSession } from 'next-auth/react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
+// Cached auth token — set synchronously by AuthSync (useLayoutEffect) before any page useEffect fires.
+// Falls back to async getSession() only if the cache is still empty (e.g. hot-reload edge case).
+let _authToken: string | null = null;
+export function setAuthToken(token: string | null) { _authToken = token; }
+
 export const api = axios.create({
   baseURL: `${API_URL}/api`,
   headers: { 'Content-Type': 'application/json' },
 });
 
-// getSession() reads the NextAuth cookie — guaranteed to be set when pages
-// guard their useEffect with `if (status !== 'authenticated') return;`
 api.interceptors.request.use(async (config) => {
-  const session = await getSession();
-  if ((session as any)?.accessToken) {
-    config.headers.Authorization = `Bearer ${(session as any).accessToken}`;
+  const token = _authToken ?? ((await getSession()) as any)?.accessToken ?? null;
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
   }
   return config;
 });
