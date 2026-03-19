@@ -21,7 +21,7 @@ services:
       NODE_ENV: ${NODE_ENV:-production}
       PORT: 4000
       SPACETIMEDB_URL: https://maincloud.spacetimedb.com
-      SPACETIMEDB_DB: securedeal
+      SPACETIMEDB_DB: ${SPACETIMEDB_DB:-cloud-assa/securedeal}
       SPACETIMEDB_TOKEN: ${SPACETIMEDB_TOKEN}
     ports:
       - '4000:4000'
