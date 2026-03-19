@@ -73,12 +73,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         {/* Logo */}
         <div className="p-5 border-b" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
           <Link href="/dashboard" className="flex items-center gap-2.5 group">
-            <div className="p-1.5 rounded-xl" style={{ background: 'linear-gradient(135deg, #7c3aed, #4f46e5)' }}>
-              <ShieldCheck className="w-5 h-5 text-white" />
+            <div className="p-1.5 rounded-xl" style={{ background: 'rgba(0,212,255,0.12)', border: '1px solid rgba(0,212,255,0.25)' }}>
+              <ShieldCheck className="w-5 h-5 text-[#00D4FF]" />
             </div>
-            <span className="text-lg font-bold">
-              <span className="text-gradient">Secure</span>
-              <span className="text-white">Deal</span>
+            <span className="text-lg font-bold text-gradient" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
+              YULRRED
             </span>
           </Link>
         </div>
