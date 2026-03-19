@@ -17,6 +17,44 @@ type FormData = {
   deadline: string;
 };
 
+/* Reusable field wrapper -------------------------------------------------- */
+function Field({ label, error, children }: { label: string; error?: string; children: React.ReactNode }) {
+  return (
+    <div className="space-y-1.5">
+      <label className="block text-xs font-semibold uppercase tracking-widest text-gray-500">
+        {label}
+      </label>
+      {children}
+      {error && (
+        <p className="flex items-center gap-1.5 text-xs text-red-400">
+          <AlertCircle className="w-3 h-3 shrink-0" />
+          {error}
+        </p>
+      )}
+    </div>
+  );
+}
+
+/* Icon-wrapped input ------------------------------------------------------- */
+const inputBase =
+  'w-full bg-white/[0.04] border border-white/[0.08] rounded-xl text-sm text-white ' +
+  'placeholder:text-white/20 outline-none transition-all duration-200 ' +
+  'focus:border-[#00D4FF]/40 focus:bg-white/[0.07] focus:ring-2 focus:ring-[#00D4FF]/10';
+
+function IconInput({
+  icon: Icon,
+  ...props
+}: { icon: React.ElementType } & React.InputHTMLAttributes<HTMLInputElement>) {
+  return (
+    <div className="relative">
+      <div className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2">
+        <Icon className="w-4 h-4 text-gray-600" />
+      </div>
+      <input className={`${inputBase} pl-10 pr-4 py-3`} {...props} />
+    </div>
+  );
+}
+
 export default function NewDealPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -38,98 +76,107 @@ export default function NewDealPage() {
 
   return (
     <div className="max-w-2xl mx-auto space-y-5">
+
+      {/* Header */}
       <div>
-        <Link href="/deals" className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-white transition-colors mb-4">
-          <ArrowLeft className="w-4 h-4" />Volver a tratos
+        <Link
+          href="/deals"
+          className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-600 hover:text-[#00D4FF] transition-colors mb-5 cursor-pointer"
+        >
+          <ArrowLeft className="w-3.5 h-3.5" />
+          Volver a tratos
         </Link>
         <div className="flex items-center gap-3">
-          <div className="p-2.5 rounded-xl bg-brand-500/15 ring-1 ring-brand-500/20">
-            <FilePlus className="w-5 h-5 text-brand-400" />
+          <div className="p-2.5 rounded-xl bg-[#00D4FF]/10 ring-1 ring-[#00D4FF]/20">
+            <FilePlus className="w-5 h-5 text-[#00D4FF]" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-white">Crear Nuevo Trato</h1>
+            <h1 className="text-2xl font-bold text-white" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
+              Crear Nuevo Trato
+            </h1>
             <p className="text-gray-500 text-sm">Los fondos se mantienen seguros hasta que ambas partes confirmen.</p>
           </div>
         </div>
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-        <div className="glass p-6 space-y-5">
+        <div
+          className="rounded-2xl p-6 space-y-5"
+          style={{
+            background: 'rgba(255,255,255,0.03)',
+            border: '1px solid rgba(255,255,255,0.07)',
+            backdropFilter: 'blur(20px)',
+          }}
+        >
+
           {/* Title */}
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1.5">Título del Trato</label>
-            <div className="relative">
-              <FileText className="absolute left-3 top-3.5 w-4 h-4 text-gray-500 pointer-events-none" />
-              <input
-                type="text"
-                placeholder="ej. Proyecto de Rediseño Web"
-                className="input-glass pl-9"
-                {...register('title', { required: 'El título es requerido', maxLength: { value: 200, message: 'Máx. 200 caracteres' } })}
-              />
-            </div>
-            {errors.title && <p className="text-red-400 text-xs mt-1 flex items-center gap-1"><AlertCircle className="w-3 h-3" />{errors.title.message}</p>}
-          </div>
+          <Field label="Título del trato" error={errors.title?.message}>
+            <IconInput
+              icon={FileText}
+              type="text"
+              placeholder="ej. Proyecto de Rediseño Web"
+              {...register('title', {
+                required: 'El título es requerido',
+                maxLength: { value: 200, message: 'Máx. 200 caracteres' },
+              })}
+            />
+          </Field>
 
           {/* Description */}
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1.5">Descripción</label>
+          <Field label="Descripción" error={errors.description?.message}>
             <textarea
               rows={4}
               placeholder="Describe el producto/servicio a entregar, incluyendo criterios de aceptación..."
-              className="input-glass resize-none"
-              {...register('description', { required: 'La descripción es requerida', maxLength: { value: 2000, message: 'Máx. 2000 caracteres' } })}
+              className={`${inputBase} px-4 py-3 resize-none`}
+              {...register('description', {
+                required: 'La descripción es requerida',
+                maxLength: { value: 2000, message: 'Máx. 2000 caracteres' },
+              })}
             />
-            {errors.description && <p className="text-red-400 text-xs mt-1 flex items-center gap-1"><AlertCircle className="w-3 h-3" />{errors.description.message}</p>}
-          </div>
+          </Field>
 
-          {/* Amount + Deadline */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1.5">Monto (USD)</label>
-              <div className="relative">
-                <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />
-                <input
-                  type="number"
-                  step="0.01"
-                  min="1"
-                  placeholder="1000.00"
-                  className="input-glass pl-9"
-                  {...register('amount', { required: 'El monto es requerido', min: { value: 1, message: 'Mínimo $1' } })}
-                />
-              </div>
-              {errors.amount && <p className="text-red-400 text-xs mt-1 flex items-center gap-1"><AlertCircle className="w-3 h-3" />{errors.amount.message}</p>}
-            </div>
+          {/* Divider */}
+          <div className="border-t border-white/[0.06]" />
 
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1.5">Fecha Límite</label>
-              <div className="relative">
-                <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />
-                <input
-                  type="date"
-                  className="input-glass pl-9"
-                  min={new Date().toISOString().split('T')[0]}
-                  {...register('deadline', { required: 'La fecha límite es requerida' })}
-                />
-              </div>
-              {errors.deadline && <p className="text-red-400 text-xs mt-1 flex items-center gap-1"><AlertCircle className="w-3 h-3" />{errors.deadline.message}</p>}
-            </div>
-          </div>
-
-          {/* Seller Email */}
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1.5">Correo del Vendedor</label>
-            <div className="relative">
-              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />
-              <input
-                type="email"
-                placeholder="vendedor@ejemplo.com"
-                className="input-glass pl-9"
-                {...register('sellerEmail', { required: 'El correo del vendedor es requerido' })}
+          {/* Amount + Deadline in a responsive grid */}
+          <div className="grid sm:grid-cols-2 gap-4">
+            <Field label="Monto (USD)" error={errors.amount?.message}>
+              <IconInput
+                icon={DollarSign}
+                type="number"
+                step="0.01"
+                min="1"
+                placeholder="1,000.00"
+                {...register('amount', {
+                  required: 'El monto es requerido',
+                  min: { value: 1, message: 'Mínimo $1' },
+                })}
               />
-            </div>
-            <p className="text-xs text-gray-600 mt-1">El vendedor debe tener cuenta en YULRRED.</p>
-            {errors.sellerEmail && <p className="text-red-400 text-xs mt-1 flex items-center gap-1"><AlertCircle className="w-3 h-3" />{errors.sellerEmail.message}</p>}
+            </Field>
+
+            <Field label="Fecha Límite" error={errors.deadline?.message}>
+              <IconInput
+                icon={Calendar}
+                type="date"
+                min={new Date().toISOString().split('T')[0]}
+                {...register('deadline', { required: 'La fecha límite es requerida' })}
+              />
+            </Field>
           </div>
+
+          {/* Divider */}
+          <div className="border-t border-white/[0.06]" />
+
+          {/* Seller email */}
+          <Field label="Correo del Vendedor" error={errors.sellerEmail?.message}>
+            <IconInput
+              icon={Mail}
+              type="email"
+              placeholder="vendedor@ejemplo.com"
+              {...register('sellerEmail', { required: 'El correo del vendedor es requerido' })}
+            />
+            <p className="text-xs text-gray-600 mt-1">El vendedor debe tener cuenta en KUQMI.</p>
+          </Field>
         </div>
 
         {/* Fee Calculator */}
@@ -147,10 +194,16 @@ export default function NewDealPage() {
 
         {/* Actions */}
         <div className="flex gap-3">
-          <button type="submit" disabled={loading} className="btn-glow flex-1">
-            {loading ? <><Loader2 className="w-4 h-4 animate-spin" />Creando trato...</> : 'Crear Trato'}
+          <button
+            type="submit"
+            disabled={loading}
+            className="btn-glow flex-1 disabled:opacity-60 disabled:cursor-not-allowed disabled:transform-none cursor-pointer"
+          >
+            {loading
+              ? <><Loader2 className="w-4 h-4 animate-spin" />Creando trato...</>
+              : 'Crear Trato'}
           </button>
-          <Link href="/deals" className="btn-ghost">Cancelar</Link>
+          <Link href="/deals" className="btn-ghost cursor-pointer">Cancelar</Link>
         </div>
       </form>
     </div>

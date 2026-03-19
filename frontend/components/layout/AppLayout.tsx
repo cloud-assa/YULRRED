@@ -77,7 +77,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               <ShieldCheck className="w-5 h-5 text-[#00D4FF]" />
             </div>
             <span className="text-lg font-bold text-gradient" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
-              YULRRED
+              KUQMI
             </span>
           </Link>
         </div>

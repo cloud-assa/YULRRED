@@ -1,5 +1,8 @@
 /** @type {import('tailwindcss').Config} */
 const { fontFamily } = require('tailwindcss/defaultTheme');
+const {
+  default: flattenColorPalette,
+} = require("tailwindcss/lib/util/flattenColorPalette");
 
 module.exports = {
   darkMode: 'class',
@@ -43,12 +46,17 @@ module.exports = {
         'fade-up':    'fadeUp 0.5s ease-out',
         'glow-pulse': 'glowPulse 3s ease-in-out infinite',
         'float':      'float 6s ease-in-out infinite',
+        'aurora':     'aurora 60s linear infinite',
       },
       keyframes: {
         fadeIn:    { from: { opacity: '0' }, to: { opacity: '1' } },
         fadeUp:    { from: { opacity: '0', transform: 'translateY(20px)' }, to: { opacity: '1', transform: 'translateY(0)' } },
         glowPulse: { '0%,100%': { opacity: '0.5' }, '50%': { opacity: '1' } },
         float:     { '0%,100%': { transform: 'translateY(0)' }, '50%': { transform: 'translateY(-8px)' } },
+        aurora: {
+          from: { backgroundPosition: '50% 50%, 50% 50%' },
+          to:   { backgroundPosition: '350% 50%, 350% 50%' },
+        },
       },
       borderRadius: {
         '4xl': '2rem',
@@ -57,5 +65,14 @@ module.exports = {
   },
   plugins: [
     require('tailwindcss-animate'),
+    addVariablesForColors,
   ],
 };
+
+function addVariablesForColors({ addBase, theme }) {
+  let allColors = flattenColorPalette(theme("colors"));
+  let newVars = Object.fromEntries(
+    Object.entries(allColors).map(([key, val]) => [`--${key}`, val])
+  );
+  addBase({ ":root": newVars });
+}

@@ -4,11 +4,11 @@ import { SessionProvider } from './providers';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'YULRRED — Escrow Seguro para el Mundo Digital',
+  title: 'KUQMI — Escrow Seguro para el Mundo Digital',
   description: 'Plataforma escrow SaaS con SpacetimeDB y Stripe. Custodia inteligente de fondos entre compradores y vendedores. 5% de comisión transparente.',
   icons: { icon: '/favicon.ico' },
   openGraph: {
-    title: 'YULRRED — Escrow Seguro',
+    title: 'KUQMI — Escrow Seguro',
     description: 'Custodia inteligente de fondos entre compradores y vendedores.',
     type: 'website',
   },

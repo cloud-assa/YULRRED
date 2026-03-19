@@ -47,7 +47,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
               className="text-2xl font-extrabold tracking-tight text-gradient"
               style={{ fontFamily: "'Space Grotesk', sans-serif" }}
             >
-              YULRRED
+              KUQMI
             </span>
           </Link>
           <p className="text-gray-500 text-sm mt-2">Compras seguras · 100% online</p>

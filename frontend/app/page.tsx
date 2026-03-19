@@ -7,6 +7,7 @@ import {
   Package, PenLine, Scale, Star,
   Menu, X, ArrowRight, Lock, Bell,
 } from 'lucide-react';
+import { AuroraBackground } from '@/components/ui/aurora-background';
 
 const sg = { fontFamily: "'Space Grotesk', sans-serif" };
 
@@ -45,7 +46,7 @@ export default function LandingPage() {
           }}
         >
           <Link href="/" className="text-lg font-extrabold tracking-tight text-gradient" style={sg}>
-            YULRRED
+            KUQMI
           </Link>
 
           <div className="hidden md:flex items-center gap-7">
@@ -94,19 +95,15 @@ export default function LandingPage() {
       </nav>
 
       {/* ── HERO ───────────────────────────────────────── */}
-      <section
-        className="relative min-h-screen flex items-center justify-center px-6 pt-28 pb-20"
+      <AuroraBackground
+        className="!h-auto min-h-screen !bg-[#0a0a0f] px-6 pt-28 pb-20"
+        showRadialGradient
         aria-labelledby="hero-h"
       >
         <div
-          className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-3xl h-[600px] pointer-events-none blur-3xl animate-orb"
-          style={{ background: 'radial-gradient(ellipse 70% 60% at 50% 25%, rgba(0,212,255,0.09), rgba(139,92,246,0.07), transparent)' }}
-          aria-hidden="true"
-        />
-        <div
           className="absolute inset-0 dot-grid pointer-events-none"
           style={{
-            opacity: 0.28,
+            opacity: 0.18,
             maskImage: 'radial-gradient(ellipse 75% 75% at 50% 40%, black 20%, transparent 100%)',
             WebkitMaskImage: 'radial-gradient(ellipse 75% 75% at 50% 40%, black 20%, transparent 100%)',
           }}
@@ -161,7 +158,7 @@ export default function LandingPage() {
             ))}
           </div>
         </div>
-      </section>
+      </AuroraBackground>
 
       {/* ── HOW IT WORKS ───────────────────────────────── */}
       <section className="py-20 px-6 scroll-mt-20" id="como-funciona" aria-labelledby="steps-h">
@@ -192,7 +189,7 @@ export default function LandingPage() {
                 icon: CreditCard, color: '#8B5CF6', bg: 'rgba(139,92,246,0.10)',
                 step: '2',
                 title: 'Tu dinero queda protegido',
-                desc: 'Pagas y el dinero queda en custodia con YULRRED. El vendedor sabe que el pago está garantizado antes de empezar.',
+                desc: 'Pagas y el dinero queda en custodia con KUQMI. El vendedor sabe que el pago está garantizado antes de empezar.',
               },
               {
                 icon: Package, color: '#4ADE80', bg: 'rgba(74,222,128,0.10)',
@@ -235,7 +232,7 @@ export default function LandingPage() {
             <Scale className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" aria-hidden="true" />
             <p className="text-sm text-gray-400">
               <strong className="text-white">¿Hay un problema?</strong>{' '}
-              Si comprador y vendedor no se ponen de acuerdo, un mediador de YULRRED revisa el caso y decide de forma imparcial.
+              Si comprador y vendedor no se ponen de acuerdo, un mediador de KUQMI revisa el caso y decide de forma imparcial.
             </p>
           </div>
         </div>
@@ -349,7 +346,7 @@ export default function LandingPage() {
                 <div className="glass-sm px-5 py-4 text-sm text-gray-400 mb-8" role="note">
                   Si comprás algo de <strong className="text-white">$1,000</strong> →
                   el vendedor recibe <strong className="text-[#4ADE80]">$950</strong> ·
-                  YULRRED cobra <strong className="text-[#00D4FF]">$50</strong>
+                  KUQMI cobra <strong className="text-[#00D4FF]">$50</strong>
                 </div>
 
                 <Link href="/register" className="btn-glow w-full md:w-auto px-8 py-4 text-base justify-center">
@@ -423,7 +420,7 @@ export default function LandingPage() {
           <div className="flex flex-col md:flex-row justify-between gap-10 mb-10">
             <div className="max-w-xs">
               <Link href="/" className="text-xl font-extrabold tracking-tight text-gradient" style={sg}>
-                YULRRED
+                KUQMI
               </Link>
               <p className="text-gray-500 text-sm mt-3 leading-relaxed">
                 Plataforma de compras seguras. Tu dinero queda protegido hasta que recibas lo que compraste.
@@ -466,7 +463,7 @@ export default function LandingPage() {
             className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-6 text-xs text-gray-600"
             style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}
           >
-            <span>© {new Date().getFullYear()} YULRRED. Todos los derechos reservados.</span>
+            <span>© {new Date().getFullYear()} KUQMI. Todos los derechos reservados.</span>
             <div className="flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-emerald-400" style={{ boxShadow: '0 0 6px rgba(74,222,128,0.5)' }} aria-hidden="true" />
               <span>Servicio activo</span>
