@@ -61,7 +61,7 @@ export class SpacetimeService {
    */
   async sql<T>(query: string): Promise<T[]> {
     try {
-      const encodedDb = encodeURIComponent(this.dbName);
+      const encodedDb = this.dbName; // DB hex ID - no encoding needed
       const response = await this.client.post<StdbSqlResponse>(
         `/v1/database/${encodedDb}/sql`,
         query,
@@ -92,7 +92,7 @@ export class SpacetimeService {
    */
   async call(reducer: string, args: unknown[]): Promise<void> {
     try {
-      const encodedDb = encodeURIComponent(this.dbName);
+      const encodedDb = this.dbName; // DB hex ID - no encoding needed
       await this.client.post(
         `/v1/database/${encodedDb}/call/${reducer}`,
         args,
