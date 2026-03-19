@@ -46,14 +46,29 @@ export const authOptions: NextAuthOptions = {
         token.id = user.id;
         token.role = (user as any).role;
         token.accessToken = (user as any).accessToken;
+        // Parse expiry from the backend JWT payload
+        try {
+          const payload = JSON.parse(
+            Buffer.from((user as any).accessToken.split('.')[1], 'base64').toString(),
+          );
+          token.accessTokenExpires = payload.exp * 1000; // ms
+        } catch {
+          token.accessTokenExpires = Date.now() + 30 * 24 * 60 * 60 * 1000;
+        }
       }
-      return token;
+      // If backend token is still valid, return as-is
+      if (Date.now() < (token.accessTokenExpires as number)) {
+        return token;
+      }
+      // Backend token expired — signal frontend to re-login
+      return { ...token, error: 'AccessTokenExpired' };
     },
     async session({ session, token }) {
       if (token) {
         session.user.id = token.id as string;
         session.user.role = token.role as string;
-        (session as any).accessToken = token.accessToken;
+        (session as any).accessToken = token.error ? null : token.accessToken;
+        (session as any).error = token.error ?? null;
       }
       return session;
     },

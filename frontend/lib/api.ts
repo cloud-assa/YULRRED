@@ -23,12 +23,7 @@ api.interceptors.request.use(async (config) => {
 
 api.interceptors.response.use(
   (res) => res,
-  async (err) => {
-    if (err.response?.status === 401 && typeof window !== 'undefined') {
-      const { signOut } = await import('next-auth/react');
-      signOut({ callbackUrl: '/login' });
-      return Promise.reject(new Error('Sesión expirada. Por favor inicia sesión nuevamente.'));
-    }
+  (err) => {
     const message = err.response?.data?.message || err.message || 'An error occurred';
     return Promise.reject(new Error(Array.isArray(message) ? message.join(', ') : message));
   },

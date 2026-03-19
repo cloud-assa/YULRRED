@@ -27,11 +27,23 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     });
   }
 
-  async validate(payload: { sub: string; email: string }) {
-    const user = await this.spacetime.sqlOne<DbUser>(
-      `SELECT * FROM user WHERE id = '${payload.sub.replace(/'/g, "''")}'`,
-    );
-    if (!user) throw new UnauthorizedException();
-    return { id: user.id, email: user.email, name: user.name, role: user.role };
+  async validate(payload: { sub: string; email: string; role?: string; name?: string }) {
+    try {
+      const user = await this.spacetime.sqlOne<DbUser>(
+        `SELECT * FROM user WHERE id = '${payload.sub.replace(/'/g, "''")}'`,
+      );
+      if (!user) throw new UnauthorizedException();
+      return { id: user.id, email: user.email, name: user.name, role: user.role };
+    } catch (err) {
+      if (err instanceof UnauthorizedException) throw err;
+      // SpacetimeDB unavailable — fall back to JWT payload claims (still cryptographically verified)
+      if (!payload.sub) throw new UnauthorizedException();
+      return {
+        id: payload.sub,
+        email: payload.email,
+        name: payload.name ?? '',
+        role: payload.role ?? 'USER',
+      };
+    }
   }
 }

@@ -1,16 +1,17 @@
 'use client';
 import { useLayoutEffect } from 'react';
-import { SessionProvider as NextAuthSessionProvider, useSession } from 'next-auth/react';
+import { SessionProvider as NextAuthSessionProvider, useSession, signOut } from 'next-auth/react';
 import { setAuthToken } from '@/lib/api';
 
-/**
- * AuthSync — renders null, but fires useLayoutEffect on every session change.
- * useLayoutEffect runs synchronously before ALL useEffect hooks in the app,
- * so _authToken is always populated before any page fires an API call.
- */
 function AuthSync() {
   const { data: session } = useSession();
   useLayoutEffect(() => {
+    if ((session as any)?.error === 'AccessTokenExpired') {
+      // Backend JWT expired — clear token and redirect to login
+      setAuthToken(null);
+      signOut({ callbackUrl: '/login' });
+      return;
+    }
     setAuthToken((session as any)?.accessToken ?? null);
   }, [session]);
   return null;

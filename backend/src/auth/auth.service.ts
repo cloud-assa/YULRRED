@@ -48,7 +48,7 @@ export class AuthService {
 
     // Build response directly — avoid read-after-write race with SpacetimeDB
     const safeUser = { id, email: dto.email, name: dto.name, role: 'USER', createdAt: new Date() };
-    const token = this.sign(id, dto.email);
+    const token = this.sign(id, dto.email, 'USER');
     return { user: safeUser, token };
   }
 
@@ -62,7 +62,7 @@ export class AuthService {
     if (!valid) throw new UnauthorizedException('Invalid credentials');
 
     const safeUser = this.toSafeUser(user);
-    const token = this.sign(user.id, user.email);
+    const token = this.sign(user.id, user.email, user.role);
     return { user: safeUser, token };
   }
 
@@ -84,7 +84,7 @@ export class AuthService {
     };
   }
 
-  private sign(userId: string, email: string) {
-    return this.jwtService.sign({ sub: userId, email });
+  private sign(userId: string, email: string, role = 'USER') {
+    return this.jwtService.sign({ sub: userId, email, role });
   }
 }
