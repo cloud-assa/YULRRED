@@ -2,7 +2,7 @@ using SpacetimeDB;
 
 // ─── Tables ────────────────────────────────────────────────────────────────
 
-[SpacetimeDB.Table(Name = "user", Public = false)]
+[SpacetimeDB.Table(Name = "user", Public = true)]
 public partial struct DbUser
 {
     [SpacetimeDB.PrimaryKey]
@@ -16,7 +16,7 @@ public partial struct DbUser
     public long UpdatedAt;
 }
 
-[SpacetimeDB.Table(Name = "deal", Public = false)]
+[SpacetimeDB.Table(Name = "deal", Public = true)]
 public partial struct DbDeal
 {
     [SpacetimeDB.PrimaryKey]
@@ -41,7 +41,7 @@ public partial struct DbDeal
     public long UpdatedAt;
 }
 
-[SpacetimeDB.Table(Name = "dispute", Public = false)]
+[SpacetimeDB.Table(Name = "dispute", Public = true)]
 public partial struct DbDispute
 {
     [SpacetimeDB.PrimaryKey]
@@ -57,7 +57,7 @@ public partial struct DbDispute
     public long CreatedAt;
 }
 
-[SpacetimeDB.Table(Name = "notification", Public = false)]
+[SpacetimeDB.Table(Name = "notification", Public = true)]
 public partial struct DbNotification
 {
     [SpacetimeDB.PrimaryKey]
