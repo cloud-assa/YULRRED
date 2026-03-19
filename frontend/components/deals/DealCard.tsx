@@ -41,7 +41,7 @@ export default function DealCard({ deal }: { deal: Deal; currentUserId?: string 
 
         <div className="flex items-end justify-between">
           <div>
-            <p className="text-2xl font-bold text-white">{formatCurrency(deal.amount)}</p>
+            <p className="text-xl md:text-2xl font-bold text-white">{formatCurrency(deal.amount)}</p>
             <p className="text-xs text-gray-500 flex items-center gap-1 mt-0.5">
               <Calendar className="w-3 h-3" />
               {formatDate(deal.deadline)}

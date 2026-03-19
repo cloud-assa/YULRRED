@@ -14,7 +14,7 @@ import FeeCalculator from '@/components/ui/FeeCalculator';
 import Avatar from '@/components/ui/Avatar';
 import {
   ArrowLeft, Wallet, Package, CheckCircle2, Clock, Lock, Loader2,
-  ShoppingCart, AlertTriangle, PartyPopper, Scale, Calendar, XCircle
+  ShoppingCart, AlertTriangle, PartyPopper, Scale, Calendar, XCircle, ClipboardList
 } from 'lucide-react';
 
 function PaymentSection({ deal, onFunded }: { deal: any; onFunded: () => void }) {
@@ -81,9 +81,9 @@ function DeliverSection({ deal, onDelivered }: { deal: any; onDelivered: () => v
   );
 }
 
-function ConfirmSection({ deal, onConfirmed }: { deal: any; onConfirmed: () => void }) {
+function ConfirmSection({ deal, onConfirmed, forceOpenDispute }: { deal: any; onConfirmed: () => void; forceOpenDispute?: boolean }) {
   const [loading, setLoading] = useState(false);
-  const [showDispute, setShowDispute] = useState(false);
+  const [showDispute, setShowDispute] = useState(!!forceOpenDispute);
   const { register, handleSubmit } = useForm<{ reason: string; evidence: string }>();
 
   const handleConfirm = async () => {
@@ -151,7 +151,7 @@ function ConfirmSection({ deal, onConfirmed }: { deal: any; onConfirmed: () => v
             <form onSubmit={handleSubmit(onDispute)} className="space-y-3">
               <textarea rows={3} placeholder="Motivo de la disputa (requerido)..." className="input-glass resize-none" style={{ borderColor: 'rgba(239,68,68,0.3)' }} {...register('reason', { required: true })} />
               <textarea rows={2} placeholder="Evidencia (opcional — enlaces, capturas...)" className="input-glass resize-none" style={{ borderColor: 'rgba(239,68,68,0.2)' }} {...register('evidence')} />
-              <div className="flex gap-2">
+              <div className="flex flex-col sm:flex-row gap-2">
                 <button type="submit" disabled={loading} className="btn-danger-glass flex-1">
                   {loading ? <><Loader2 className="w-4 h-4 animate-spin" />Enviando...</> : 'Enviar Disputa'}
                 </button>
@@ -183,6 +183,270 @@ function CancelButton({ dealId, onCancelled }: { dealId: string; onCancelled: ()
     </button>
   );
 }
+
+// ── Product Inspection ────────────────────────────────────────────────────────
+
+interface InspectionData {
+  checklist: {
+    packagingIntact: boolean; noVisibleDamage: boolean; clean: boolean;
+    fullyFunctional: boolean; batteryOk: boolean; allPartsPresent: boolean;
+  };
+  notes: string;
+  condition: 'BUENO' | 'INTERMEDIO' | 'MALO';
+  submittedAt: string;
+}
+
+const CHECKLIST_LABELS: Record<string, string> = {
+  packagingIntact:  'Empaque íntegro',
+  noVisibleDamage:  'Sin daños visibles',
+  clean:            'Limpio y presentable',
+  fullyFunctional:  'Funciona correctamente',
+  batteryOk:        'Batería / energía OK',
+  allPartsPresent:  'Todas las piezas presentes',
+};
+
+const CONDITION_CONFIG = {
+  BUENO:      { label: 'Bueno',      color: 'text-emerald-400', bg: 'bg-emerald-500/15', ring: 'ring-emerald-500/20', icon: '✓' },
+  INTERMEDIO: { label: 'Intermedio', color: 'text-amber-400',   bg: 'bg-amber-500/15',   ring: 'ring-amber-500/20',   icon: '⚠' },
+  MALO:       { label: 'Malo',       color: 'text-red-400',     bg: 'bg-red-500/15',     ring: 'ring-red-500/20',     icon: '✗' },
+};
+
+function ProductInspectionSection({
+  deal, isSeller, isBuyer, onOpenDispute,
+}: {
+  deal: any; isSeller: boolean; isBuyer: boolean; onOpenDispute: () => void;
+}) {
+  const storageKey  = `inspection_${deal.id}`;
+  const acceptedKey = `inspection_accepted_${deal.id}`;
+
+  const [inspection, setInspection] = useState<InspectionData | null>(() => {
+    try { const s = localStorage.getItem(storageKey); return s ? JSON.parse(s) : null; } catch { return null; }
+  });
+  const [accepted, setAccepted] = useState(() => {
+    try { return !!localStorage.getItem(acceptedKey); } catch { return false; }
+  });
+  const [showForm,     setShowForm]     = useState(false);
+  const [showBadModal, setShowBadModal] = useState(false);
+  const [checklist,    setChecklist]    = useState({
+    packagingIntact: false, noVisibleDamage: false, clean: false,
+    fullyFunctional: false, batteryOk: false, allPartsPresent: false,
+  });
+  const [notes,     setNotes]     = useState('');
+  const [condition, setCondition] = useState<'BUENO' | 'INTERMEDIO' | 'MALO'>('BUENO');
+
+  if (!['FUNDED', 'DELIVERED', 'COMPLETED', 'DISPUTED'].includes(deal.status)) return null;
+
+  const handleSubmit = () => {
+    const data: InspectionData = { checklist, notes, condition, submittedAt: new Date().toISOString() };
+    try { localStorage.setItem(storageKey, JSON.stringify(data)); } catch {}
+    setInspection(data);
+    setShowForm(false);
+    if (condition === 'MALO') setShowBadModal(true);
+    toast.success('Reporte de inspección guardado');
+  };
+
+  const handleAccept = () => {
+    try { localStorage.setItem(acceptedKey, '1'); } catch {}
+    setAccepted(true);
+    setShowBadModal(false);
+    toast.success('Condición aceptada. El vendedor puede proceder.');
+  };
+
+  return (
+    <>
+      {/* Modal for BAD condition */}
+      <AnimatePresence>
+        {showBadModal && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            style={{ background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(8px)' }}
+          >
+            <motion.div
+              initial={{ scale: 0.92, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.92, opacity: 0 }}
+              className="glass max-w-md w-full p-6 space-y-4"
+              style={{ borderLeft: '3px solid rgba(239,68,68,0.6)' }}
+            >
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-xl bg-red-500/15 ring-1 ring-red-500/20">
+                  <AlertTriangle className="w-5 h-5 text-red-400" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-white">Producto en Mal Estado</h3>
+                  <p className="text-xs text-gray-500">El vendedor reportó una condición deficiente</p>
+                </div>
+              </div>
+              <p className="text-sm text-gray-400">
+                La inspección indica que el producto está en{' '}
+                <span className="text-red-400 font-semibold">mal estado</span>.
+                ¿Deseas aceptar las condiciones y continuar, o abrir una disputa?
+              </p>
+              {inspection?.notes && (
+                <div className="glass-sm p-3">
+                  <p className="text-[10px] text-gray-500 uppercase tracking-wider mb-1">Observaciones</p>
+                  <p className="text-sm text-gray-300">{inspection.notes}</p>
+                </div>
+              )}
+              <div className="flex flex-col sm:flex-row gap-2 pt-1">
+                <button onClick={handleAccept} className="btn-glow flex-1 text-sm" style={{ background: 'linear-gradient(135deg, #b45309, #d97706)' }}>
+                  <CheckCircle2 className="w-4 h-4" /> Acepto — Continuar
+                </button>
+                <button onClick={() => { setShowBadModal(false); onOpenDispute(); }} className="btn-danger-glass flex-1 text-sm">
+                  <AlertTriangle className="w-4 h-4" /> No acepto — Disputar
+                </button>
+              </div>
+              <p className="text-[10px] text-gray-600 text-center">
+                Al aceptar confirmas que conoces el estado del producto y deseas continuar.
+              </p>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Inspection Card */}
+      <div className="glass p-5 space-y-4" style={{ borderLeft: '3px solid rgba(99,102,241,0.5)' }}>
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <div className="flex items-center gap-2">
+            <div className="p-2 rounded-xl bg-indigo-500/15 ring-1 ring-indigo-500/20">
+              <ClipboardList className="w-4 h-4 text-indigo-400" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-white text-sm">Inspección del Producto</h3>
+              <p className="text-[10px] text-gray-500">Verificación de condición física</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            {inspection && (
+              <span className={`badge ring-1 ${CONDITION_CONFIG[inspection.condition].bg} ${CONDITION_CONFIG[inspection.condition].color} ${CONDITION_CONFIG[inspection.condition].ring}`}>
+                {CONDITION_CONFIG[inspection.condition].label}
+              </span>
+            )}
+            {isSeller && !inspection && deal.status === 'FUNDED' && (
+              <button onClick={() => setShowForm(!showForm)} className="btn-ghost text-xs py-1.5 px-3">
+                {showForm ? 'Cancelar' : 'Iniciar Inspección'}
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Form */}
+        {showForm && isSeller && (
+          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {Object.entries(checklist).map(([key, val]) => (
+                <label key={key} className="flex items-center gap-2.5 glass-sm p-3 cursor-pointer hover:bg-white/[0.04] transition-all rounded-xl">
+                  <input
+                    type="checkbox" checked={val}
+                    onChange={(e) => setChecklist((p) => ({ ...p, [key]: e.target.checked }))}
+                    className="w-4 h-4 rounded accent-indigo-500 shrink-0"
+                  />
+                  <span className="text-sm text-gray-300">{CHECKLIST_LABELS[key]}</span>
+                </label>
+              ))}
+            </div>
+            <div>
+              <label className="block text-xs text-gray-500 mb-1.5">Observaciones adicionales</label>
+              <textarea
+                rows={3} value={notes} onChange={(e) => setNotes(e.target.value)}
+                placeholder="Describe el estado, defectos encontrados, etc."
+                className="input-glass resize-none"
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-gray-500 mb-2">Condición general del producto</label>
+              <div className="grid grid-cols-3 gap-2">
+                {(['BUENO', 'INTERMEDIO', 'MALO'] as const).map((c) => {
+                  const cfg = CONDITION_CONFIG[c];
+                  return (
+                    <button
+                      key={c} type="button" onClick={() => setCondition(c)}
+                      className={`glass-sm p-3 text-center transition-all ring-1 rounded-xl ${
+                        condition === c
+                          ? `${cfg.bg} ${cfg.ring} ${cfg.color}`
+                          : 'ring-white/[0.06] text-gray-500 hover:text-gray-300'
+                      }`}
+                    >
+                      <p className="text-xl">{cfg.icon}</p>
+                      <p className="text-xs font-semibold mt-1">{cfg.label}</p>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+            <button onClick={handleSubmit} className="btn-glow w-full">
+              <ClipboardList className="w-4 h-4" /> Generar Reporte
+            </button>
+          </motion.div>
+        )}
+
+        {/* Report */}
+        {inspection && (
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              {Object.entries(inspection.checklist).map(([key, val]) => (
+                <div key={key} className={`glass-sm p-2.5 flex items-center gap-2 ${val ? '' : 'opacity-40'}`}>
+                  <span className={`text-sm shrink-0 ${val ? 'text-emerald-400' : 'text-red-400'}`}>{val ? '✓' : '✗'}</span>
+                  <span className="text-xs text-gray-400 leading-tight">{CHECKLIST_LABELS[key]}</span>
+                </div>
+              ))}
+            </div>
+            {inspection.notes && (
+              <div className="glass-sm p-3">
+                <p className="text-[10px] text-gray-500 uppercase tracking-wider mb-1">Observaciones</p>
+                <p className="text-sm text-gray-300">{inspection.notes}</p>
+              </div>
+            )}
+            <div className={`glass-sm p-3 flex items-center justify-between ring-1 ${CONDITION_CONFIG[inspection.condition].bg} ${CONDITION_CONFIG[inspection.condition].ring}`}>
+              <span className="text-xs text-gray-400">Condición general</span>
+              <span className={`font-bold text-sm ${CONDITION_CONFIG[inspection.condition].color}`}>
+                {CONDITION_CONFIG[inspection.condition].label}
+              </span>
+            </div>
+            <p className="text-[10px] text-gray-600">
+              Inspeccionado el {new Date(inspection.submittedAt).toLocaleString('es')}
+            </p>
+
+            {isBuyer && inspection.condition === 'MALO' && !accepted && (
+              <div className="glass-sm p-3 space-y-2" style={{ borderColor: 'rgba(239,68,68,0.3)', background: 'rgba(239,68,68,0.05)' }}>
+                <p className="text-sm text-red-300 font-semibold flex items-center gap-1.5">
+                  <AlertTriangle className="w-4 h-4" /> Se requiere tu aceptación
+                </p>
+                <p className="text-xs text-gray-400">
+                  El producto fue reportado en mal estado. Debes confirmar para que el vendedor pueda proceder.
+                </p>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <button onClick={handleAccept} className="btn-ghost flex-1 text-xs py-2" style={{ borderColor: 'rgba(245,158,11,0.4)', color: '#fcd34d' }}>
+                    <CheckCircle2 className="w-3.5 h-3.5" /> Acepto — Continuar
+                  </button>
+                  <button onClick={onOpenDispute} className="btn-danger-glass flex-1 text-xs py-2">
+                    <AlertTriangle className="w-3.5 h-3.5" /> No acepto
+                  </button>
+                </div>
+              </div>
+            )}
+            {isBuyer && inspection.condition === 'MALO' && accepted && (
+              <p className="text-xs text-emerald-400 flex items-center gap-1.5">
+                <CheckCircle2 className="w-3.5 h-3.5" /> Condición aceptada por el comprador
+              </p>
+            )}
+          </div>
+        )}
+
+        {!inspection && !showForm && (
+          <p className="text-sm text-gray-600 text-center py-2">
+            {isSeller
+              ? deal.status === 'FUNDED'
+                ? 'Inspecciona el producto antes de marcarlo como entregado.'
+                : 'No se realizó inspección previa.'
+              : 'Esperando inspección del vendedor...'}
+          </p>
+        )}
+      </div>
+    </>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 const STEPS = [
   { key: 'PENDING',   label: 'Pendiente',  icon: Clock },
@@ -220,9 +484,10 @@ export default function DealDetailPage() {
   );
   if (!deal) return <div className="text-center py-20 text-gray-500">Trato no encontrado</div>;
 
-  const isBuyer = deal.buyer?.id === session?.user?.id;
+  const isBuyer  = deal.buyer?.id  === session?.user?.id;
   const isSeller = deal.seller?.id === session?.user?.id;
   const currentStepIdx = STEPS.findIndex((s) => s.key === deal.status);
+  const [openDisputeFromInspection, setOpenDisputeFromInspection] = useState(false);
 
   return (
     <div className="max-w-4xl mx-auto space-y-5">
@@ -231,9 +496,9 @@ export default function DealDetailPage() {
         <Link href="/deals" className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-white transition-colors mb-3">
           <ArrowLeft className="w-4 h-4" />Volver a tratos
         </Link>
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-white">{deal.title}</h1>
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <h1 className="text-lg md:text-2xl font-bold text-white break-words">{deal.title}</h1>
             <p className="text-gray-500 text-sm mt-1">Creado {formatRelative(deal.createdAt)}</p>
           </div>
           <DealStatusBadge status={deal.status} />
@@ -254,7 +519,7 @@ export default function DealDetailPage() {
           <div className="glass p-5 space-y-4">
             <h2 className="font-semibold text-white">Información del Trato</h2>
             <p className="text-gray-400 text-sm leading-relaxed whitespace-pre-wrap">{deal.description}</p>
-            <div className="grid grid-cols-2 gap-4 pt-2 border-t border-white/[0.06]">
+            <div className="grid grid-cols-2 gap-3 pt-2 border-t border-white/[0.06]">
               {[
                 { label: 'Monto', value: formatCurrency(deal.amount), color: 'text-white', large: true },
                 { label: 'Fecha Límite', value: formatDate(deal.deadline), color: 'text-white' },
@@ -291,6 +556,14 @@ export default function DealDetailPage() {
             </div>
           </div>
 
+          {/* Product Inspection */}
+          <ProductInspectionSection
+            deal={deal}
+            isSeller={isSeller}
+            isBuyer={isBuyer}
+            onOpenDispute={() => setOpenDisputeFromInspection(true)}
+          />
+
           {/* Dispute */}
           {deal.dispute && (
             <div className="glass p-5 space-y-3" style={{ borderLeft: '3px solid rgba(239,68,68,0.5)', background: 'rgba(239,68,68,0.03)' }}>
@@ -326,7 +599,9 @@ export default function DealDetailPage() {
         <div className="lg:col-span-2 space-y-4">
           {deal.status === 'PENDING' && isBuyer && <PaymentSection deal={deal} onFunded={loadDeal} />}
           {deal.status === 'FUNDED' && isSeller && <DeliverSection deal={deal} onDelivered={loadDeal} />}
-          {deal.status === 'DELIVERED' && isBuyer && <ConfirmSection deal={deal} onConfirmed={loadDeal} />}
+          {deal.status === 'DELIVERED' && isBuyer && (
+            <ConfirmSection deal={deal} onConfirmed={loadDeal} forceOpenDispute={openDisputeFromInspection} />
+          )}
           {deal.status === 'COMPLETED' && (
             <div className="glass p-6 text-center space-y-2" style={{ borderLeft: '3px solid rgba(16,185,129,0.5)' }}>
               <div className="p-3 rounded-2xl bg-emerald-500/15 ring-1 ring-emerald-500/20 w-fit mx-auto">

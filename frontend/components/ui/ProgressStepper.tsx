@@ -24,12 +24,12 @@ export default function ProgressStepper({ steps, currentStep }: ProgressStepperP
 
         return (
           <div key={step.key} className="flex items-center flex-1 last:flex-none">
-            <div className="flex flex-col items-center gap-2">
+            <div className="flex flex-col items-center gap-1.5 md:gap-2">
               <motion.div
                 initial={false}
                 animate={active ? { boxShadow: '0 0 20px rgba(124,58,237,0.4)' } : {}}
                 className={cn(
-                  'w-10 h-10 rounded-full flex items-center justify-center ring-2 transition-all duration-300',
+                  'w-8 h-8 md:w-10 md:h-10 rounded-full flex items-center justify-center ring-2 transition-all duration-300',
                   completed
                     ? 'ring-brand-500 bg-gradient-brand'
                     : active
@@ -38,20 +38,20 @@ export default function ProgressStepper({ steps, currentStep }: ProgressStepperP
                 )}
               >
                 {completed ? (
-                  <Check className="w-4 h-4 text-white" />
+                  <Check className="w-3.5 h-3.5 md:w-4 md:h-4 text-white" />
                 ) : (
-                  <Icon className={cn('w-4 h-4', active ? 'text-brand-300' : 'text-gray-600')} />
+                  <Icon className={cn('w-3.5 h-3.5 md:w-4 md:h-4', active ? 'text-brand-300' : 'text-gray-600')} />
                 )}
               </motion.div>
               <span className={cn(
-                'text-xs font-medium whitespace-nowrap',
+                'text-[9px] md:text-xs font-medium whitespace-nowrap',
                 active ? 'text-brand-300' : completed ? 'text-gray-400' : 'text-gray-600'
               )}>
                 {step.label}
               </span>
             </div>
             {i < steps.length - 1 && (
-              <div className="flex-1 h-px mx-3 mt-[-18px] overflow-hidden bg-white/[0.06]">
+              <div className="flex-1 h-px mx-1 md:mx-3 mt-[-18px] overflow-hidden bg-white/[0.06]">
                 <motion.div
                   initial={{ width: '0%' }}
                   animate={{ width: i < currentStep ? '100%' : '0%' }}

@@ -127,7 +127,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <div className="flex-1 flex flex-col min-w-0">
         {/* Topbar */}
         <header
-          className="px-6 py-4 flex items-center justify-between sticky top-0 z-10"
+          className="px-4 md:px-6 py-3 md:py-4 flex items-center justify-between sticky top-0 z-10"
           style={{
             background: 'rgba(15,15,26,0.8)',
             backdropFilter: 'blur(20px)',
@@ -155,7 +155,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           </div>
         </header>
 
-        <main className="flex-1 p-6">{children}</main>
+        <main className="flex-1 p-4 md:p-6">{children}</main>
       </div>
     </div>
   );
