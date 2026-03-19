@@ -3,33 +3,54 @@ import { ShieldCheck } from 'lucide-react';
 
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden">
-      {/* Background orbs */}
+    <div className="min-h-screen flex items-center justify-center p-5 relative overflow-hidden">
+
+      {/* Dot grid */}
       <div
-        className="absolute top-0 left-1/4 w-96 h-96 rounded-full opacity-20 blur-3xl pointer-events-none"
-        style={{ background: 'radial-gradient(circle, #7c3aed, transparent)' }}
-      />
-      <div
-        className="absolute bottom-0 right-1/4 w-96 h-96 rounded-full opacity-15 blur-3xl pointer-events-none"
-        style={{ background: 'radial-gradient(circle, #4f46e5, transparent)' }}
+        className="absolute inset-0 dot-grid pointer-events-none"
+        style={{
+          opacity: 0.18,
+          maskImage: 'radial-gradient(ellipse 80% 80% at 50% 50%, black 20%, transparent 100%)',
+          WebkitMaskImage: 'radial-gradient(ellipse 80% 80% at 50% 50%, black 20%, transparent 100%)',
+        }}
+        aria-hidden="true"
       />
 
-      <div className="w-full max-w-md relative z-10">
+      {/* Orbs */}
+      <div
+        className="absolute -top-32 -left-32 w-[480px] h-[480px] rounded-full blur-3xl pointer-events-none"
+        style={{ background: 'radial-gradient(circle, rgba(0,212,255,0.07), transparent)' }}
+        aria-hidden="true"
+      />
+      <div
+        className="absolute -bottom-32 -right-32 w-[480px] h-[480px] rounded-full blur-3xl pointer-events-none"
+        style={{ background: 'radial-gradient(circle, rgba(139,92,246,0.07), transparent)' }}
+        aria-hidden="true"
+      />
+
+      <div className="w-full max-w-[440px] relative z-10">
+
         {/* Logo */}
         <div className="text-center mb-8">
-          <Link href="/" className="inline-flex flex-col items-center gap-3 group">
+          <Link href="/" className="inline-flex flex-col items-center gap-3">
             <div
-              className="p-3 rounded-2xl shadow-glow-brand"
-              style={{ background: 'linear-gradient(135deg, #7c3aed, #4f46e5)' }}
+              className="w-14 h-14 rounded-2xl flex items-center justify-center"
+              style={{
+                background: 'rgba(0,212,255,0.10)',
+                border: '1px solid rgba(0,212,255,0.25)',
+                boxShadow: '0 0 24px rgba(0,212,255,0.12)',
+              }}
             >
-              <ShieldCheck className="w-8 h-8 text-white" />
+              <ShieldCheck className="w-7 h-7 text-[#00D4FF]" />
             </div>
-            <span className="text-2xl font-bold">
-              <span className="text-gradient">Secure</span>
-              <span className="text-white">Deal</span>
+            <span
+              className="text-2xl font-extrabold tracking-tight text-gradient"
+              style={{ fontFamily: "'Space Grotesk', sans-serif" }}
+            >
+              YULRRED
             </span>
           </Link>
-          <p className="text-gray-500 text-sm mt-1">Plataforma de Garantía Segura</p>
+          <p className="text-gray-500 text-sm mt-2">Compras seguras · 100% online</p>
         </div>
 
         {children}
