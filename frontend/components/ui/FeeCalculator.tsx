@@ -1,3 +1,5 @@
+import { formatCurrency } from '@/lib/utils';
+
 interface FeeCalculatorProps {
   amount: number;
   feePercent?: number;
@@ -12,15 +14,16 @@ export default function FeeCalculator({ amount, feePercent = 5 }: FeeCalculatorP
       <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Desglose</p>
       <div className="flex justify-between text-sm">
         <span className="text-gray-400">Monto total</span>
-        <span className="text-white font-semibold">${amount.toFixed(2)}</span>
+        {/* Moneda PEN (soles) */}
+        <span className="text-white font-semibold">{formatCurrency(amount)}</span>
       </div>
       <div className="flex justify-between text-sm">
         <span className="text-gray-400">Comisión ({feePercent}%)</span>
-        <span className="text-amber-300 font-medium">-${fee.toFixed(2)}</span>
+        <span className="text-amber-300 font-medium">-{formatCurrency(fee)}</span>
       </div>
       <div className="border-t border-white/[0.08] pt-2 flex justify-between text-sm">
         <span className="text-gray-300 font-medium">El vendedor recibe</span>
-        <span className="text-emerald-400 font-bold">${net.toFixed(2)}</span>
+        <span className="text-emerald-400 font-bold">{formatCurrency(net)}</span>
       </div>
     </div>
   );

@@ -7,7 +7,7 @@ import { useForm } from 'react-hook-form';
 import { AnimatePresence, motion } from 'framer-motion';
 import { dealsApi } from '@/lib/api';
 import FeeCalculator from '@/components/ui/FeeCalculator';
-import { ArrowLeft, FileText, DollarSign, Calendar, Mail, Loader2, AlertCircle, FilePlus } from 'lucide-react';
+import { ArrowLeft, FileText, DollarSign, Calendar, Mail, Link2, Loader2, AlertCircle, FilePlus, ShoppingBag } from 'lucide-react';
 
 type FormData = {
   title: string;
@@ -15,6 +15,7 @@ type FormData = {
   amount: number;
   sellerEmail: string;
   deadline: string;
+  productUrl?: string; // URL para modo "Compra Gestionada"
 };
 
 /* Reusable field wrapper -------------------------------------------------- */
@@ -140,7 +141,7 @@ export default function NewDealPage() {
 
           {/* Amount + Deadline in a responsive grid */}
           <div className="grid sm:grid-cols-2 gap-4">
-            <Field label="Monto (USD)" error={errors.amount?.message}>
+            <Field label="Monto (PEN — Soles)" error={errors.amount?.message}>
               <IconInput
                 icon={DollarSign}
                 type="number"
@@ -149,7 +150,7 @@ export default function NewDealPage() {
                 placeholder="1,000.00"
                 {...register('amount', {
                   required: 'El monto es requerido',
-                  min: { value: 1, message: 'Mínimo $1' },
+                  min: { value: 1, message: 'Mínimo S/ 1' },
                 })}
               />
             </Field>
@@ -177,6 +178,38 @@ export default function NewDealPage() {
             />
             <p className="text-xs text-gray-600 mt-1">El vendedor debe tener cuenta en KUQMI.</p>
           </Field>
+
+          {/* Divider */}
+          <div className="border-t border-white/[0.06]" />
+
+          {/* URL del producto — activa modo "Compra Gestionada" */}
+          <Field label="URL del Producto (opcional)" error={errors.productUrl?.message}>
+            <IconInput
+              icon={Link2}
+              type="url"
+              placeholder="https://tienda.com/producto-123"
+              {...register('productUrl', {
+                pattern: {
+                  value: /^https?:\/\/.+/,
+                  message: 'Debe ser una URL válida (https://...)',
+                },
+              })}
+            />
+            <p className="text-xs text-gray-600 mt-1">
+              Si proporcionas una URL, activas el <span className="text-cyan-400 font-semibold">Modo Compra Gestionada</span>: la plataforma adquiere el producto por ti y sube evidencias para tu aprobación antes de proceder.
+            </p>
+          </Field>
+
+          {/* Banner informativo cuando hay URL */}
+          {watch('productUrl') && (
+            <div className="flex items-start gap-3 p-3 rounded-xl" style={{ background: 'rgba(0,212,255,0.06)', border: '1px solid rgba(0,212,255,0.15)' }}>
+              <ShoppingBag className="w-4 h-4 text-cyan-400 shrink-0 mt-0.5" />
+              <div>
+                <p className="text-xs font-semibold text-cyan-300">Modo Compra Gestionada activado</p>
+                <p className="text-xs text-gray-500 mt-0.5">La plataforma gestionará la compra, inspeccionará el producto y subirá evidencias antes de solicitar tu aprobación.</p>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Fee Calculator */}

@@ -79,11 +79,9 @@ export default function LoginPage() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.35 }}
+            transition={{ duration: 0.25 }}
             className="fixed inset-0 z-[999] flex flex-col items-center justify-center"
-            style={{
-              background: 'radial-gradient(ellipse 80% 60% at 50% 40%, rgba(0,212,255,0.06) 0%, #06060f 50%, #050508 100%)',
-            }}
+            style={{ background: '#07070f' }}
           >
             {/* Dot grid */}
             <div
@@ -173,6 +171,9 @@ export default function LoginPage() {
           padding: '32px',
           backdropFilter: 'blur(20px)',
           WebkitBackdropFilter: 'blur(20px)',
+          opacity: redirecting ? 0 : 1,
+          pointerEvents: redirecting ? 'none' : undefined,
+          transition: 'opacity 0.2s',
         }}
       >
         {/* Badge */}

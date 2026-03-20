@@ -50,6 +50,7 @@ interface DbDeal {
   delivered_at: number | null;
   completed_at: number | null;
   refunded_at: number | null;
+  product_url: string | null; // URL del producto para modo "Compra Gestionada"
   created_at: number;
   updated_at: number;
 }
@@ -108,6 +109,7 @@ export class DealsService {
       deliveredAt: deliveredAt ? new Date(deliveredAt) : null,
       completedAt: completedAt ? new Date(completedAt) : null,
       refundedAt: refundedAt ? new Date(refundedAt) : null,
+      productUrl: unwrap(deal.product_url), // URL del producto para Compra Gestionada
       createdAt: new Date(deal.created_at),
       updatedAt: new Date(deal.updated_at),
     };
@@ -170,6 +172,8 @@ export class DealsService {
     const id = cuid();
     const deadline = new Date(dto.deadline).getTime();
 
+    // Último arg: productUrl nullable — enviar como {some: url} o {none: []} para SpacetimeDB
+    const productUrlArg = dto.productUrl ? { some: dto.productUrl } : { none: [] };
     await this.spacetime.call('create_deal', [
       id,
       dto.title,
@@ -177,11 +181,12 @@ export class DealsService {
       dto.amount,
       feeAmount,
       netAmount,
-      'usd',
+      'pen', // Moneda cambiada de USD a PEN (soles peruanos)
       DealStatus.PENDING,
       deadline,
       buyerId,
       seller.id,
+      productUrlArg,
     ]);
 
     const buyer = await this.getUserById(buyerId);
@@ -190,10 +195,11 @@ export class DealsService {
     const dealShape: DbDeal = {
       id, title: dto.title, description: dto.description,
       amount: dto.amount, fee_amount: feeAmount, net_amount: netAmount,
-      currency: 'usd', status: DealStatus.PENDING, deadline,
+      currency: 'pen', status: DealStatus.PENDING, deadline,
       buyer_id: buyerId, seller_id: seller.id,
       stripe_payment_intent_id: null, stripe_transfer_id: null,
       delivery_note: null, delivered_at: null, completed_at: null, refunded_at: null,
+      product_url: dto.productUrl ?? null, // URL del producto para Compra Gestionada
       created_at: Date.now(), updated_at: Date.now(),
     };
 
@@ -311,6 +317,14 @@ export class DealsService {
       throw new BadRequestException(`Deal must be DELIVERED to confirm receipt. Current status: ${deal.status}`);
     }
 
+    // Verificar que existen evidencias antes de completar — requisito obligatorio
+    const evidences = await this.spacetime.sql<{ id: string }>(
+      `SELECT id FROM evidence WHERE deal_id = '${this.esc(id)}'`,
+    );
+    if (evidences.length === 0) {
+      throw new BadRequestException('Se requiere al menos una evidencia antes de completar el trato. Sube fotos o documentos del producto/servicio.');
+    }
+
     await this.spacetime.call('mark_deal_completed', [id]);
 
     const updated = await this.getDealById(id);
@@ -344,6 +358,42 @@ export class DealsService {
     const updated = await this.getDealById(id);
     if (!updated) throw new NotFoundException('Deal not found after cancellation');
     return this.toDeal(updated);
+  }
+
+  // Admin mueve deal a AWAITING_APPROVAL después de inspeccionar el producto y subir evidencias
+  async setAwaitingApproval(id: string) {
+    const deal = await this.getDealById(id);
+    if (!deal) throw new NotFoundException('Deal not found');
+    if (deal.status !== DealStatus.FUNDED) {
+      throw new BadRequestException(`El trato debe estar en estado FUNDED. Estado actual: ${deal.status}`);
+    }
+    await this.spacetime.call('update_deal_status', [id, DealStatus.AWAITING_APPROVAL]);
+    await this.notifications.create(
+      deal.buyer_id, id, 'DEAL_AWAITING_APPROVAL',
+      'Revisión Requerida',
+      `La plataforma ha subido evidencias del producto "${deal.title}". Por favor revísalas y aprueba para continuar.`,
+    );
+    const updated = await this.getDealById(id);
+    return this.toDeal(updated!);
+  }
+
+  // Comprador aprueba evidencias de la plataforma → el trato continúa (vuelve a FUNDED)
+  async approveService(id: string, buyerId: string) {
+    const deal = await this.getDealById(id);
+    if (!deal) throw new NotFoundException('Deal not found');
+    if (deal.buyer_id !== buyerId) throw new ForbiddenException('Solo el comprador puede aprobar');
+    if (deal.status !== DealStatus.AWAITING_APPROVAL) {
+      throw new BadRequestException(`El trato debe estar en estado AWAITING_APPROVAL. Estado actual: ${deal.status}`);
+    }
+    // Volver a FUNDED para que el vendedor/plataforma pueda proceder con la entrega
+    await this.spacetime.call('update_deal_status', [id, DealStatus.FUNDED]);
+    await this.notifications.create(
+      deal.seller_id, id, 'DEAL_APPROVED',
+      'Comprador Aprobó',
+      `El comprador aprobó las evidencias del trato "${deal.title}". Puedes proceder con la entrega.`,
+    );
+    const updated = await this.getDealById(id);
+    return this.toDeal(updated!);
   }
 
   async getAllAdmin() {

@@ -10,15 +10,16 @@ import PageHeader from '@/components/ui/PageHeader';
 import { Bell, BellOff, CheckCheck } from 'lucide-react';
 
 export default function NotificationsPage() {
-  const { status } = useSession();
+  const { data: session, status } = useSession();
+  const accessToken = (session as any)?.accessToken as string | null | undefined;
   const [notifications, setNotifications] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const load = () => notificationsApi.list().then(setNotifications).finally(() => setLoading(false));
+  const load = () => notificationsApi.list().then(setNotifications).catch(() => {}).finally(() => setLoading(false));
   useEffect(() => {
-    if (status !== 'authenticated') return;
+    if (status !== 'authenticated' || !accessToken) return;
     load();
-  }, [status]);
+  }, [status, accessToken]);
 
   const markAllRead = async () => {
     try {

@@ -19,6 +19,8 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [retry, setRetry] = useState(0);
+  // autoRetry: contador interno de reintentos automáticos con backoff exponencial (máx 3)
+  const [autoRetry, setAutoRetry] = useState(0);
 
   useEffect(() => {
     if (status === 'loading') return;
@@ -26,10 +28,19 @@ export default function DashboardPage() {
     setLoading(true);
     setError(false);
     usersApi.dashboard()
-      .then((d) => { setData(d); setError(false); })
-      .catch(() => { toast.error('Error al cargar el panel. Intenta de nuevo.'); setError(true); })
+      .then((d) => { setData(d); setError(false); setAutoRetry(0); })
+      .catch(() => {
+        setError(true);
+        if (autoRetry < 3) {
+          // Backoff: 1s → 2s → 4s antes de reintentar automáticamente
+          setTimeout(() => setAutoRetry((n) => n + 1), Math.pow(2, autoRetry) * 1000);
+        } else {
+          // Mostrar error solo después de agotar los reintentos automáticos
+          toast.error('Error al cargar el panel. Intenta de nuevo.');
+        }
+      })
       .finally(() => setLoading(false));
-  }, [status, accessToken, retry]);
+  }, [status, accessToken, retry, autoRetry]);
 
   if (loading) {
     return (
@@ -51,7 +62,7 @@ export default function DashboardPage() {
     return (
       <div className="max-w-6xl mx-auto flex flex-col items-center justify-center py-24 gap-4">
         <p className="text-gray-400 text-sm">No se pudo cargar el panel. Verifica tu conexión.</p>
-        <button className="btn-ghost py-2 px-6 text-sm" onClick={() => setRetry((r) => r + 1)}>
+        <button className="btn-ghost py-2 px-6 text-sm" onClick={() => { setAutoRetry(0); setRetry((r) => r + 1); }}>
           Reintentar
         </button>
       </div>

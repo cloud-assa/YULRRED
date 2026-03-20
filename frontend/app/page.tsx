@@ -113,7 +113,7 @@ export default function LandingPage() {
 
         <div className="relative z-10 max-w-3xl mx-auto text-center">
           <div
-            className="inline-flex items-center gap-2.5 px-4 py-2 mb-8 animate-fade-up rounded-full"
+            className="inline-flex items-center gap-2.5 px-4 py-2 mb-7 animate-fade-up rounded-full"
             style={{
               background: 'rgba(0,212,255,0.07)',
               border: '1px solid rgba(0,212,255,0.22)',
@@ -127,21 +127,32 @@ export default function LandingPage() {
 
           <h1
             id="hero-h"
-            className="font-black leading-[1.04] mb-6 animate-fade-up"
+            className="font-black text-white leading-[1.06] mb-3 animate-fade-up"
             style={{
               ...pjs,
-              fontSize: 'clamp(40px, 6.5vw, 80px)',
+              fontSize: 'clamp(38px, 6vw, 76px)',
               letterSpacing: '-0.04em',
-              animationDelay: '0.1s',
+              animationDelay: '0.08s',
             }}
           >
-            Compra y vende online<br />
-            <span className="text-white">sin arriesgar tu dinero</span>
+            Compra y vende online
           </h1>
+          <p
+            className="font-black text-white leading-[1.06] mb-7 animate-fade-up"
+            style={{
+              ...pjs,
+              fontSize: 'clamp(28px, 4.5vw, 54px)',
+              letterSpacing: '-0.035em',
+              color: 'rgba(255,255,255,0.55)',
+              animationDelay: '0.14s',
+            }}
+          >
+            sin arriesgar tu dinero
+          </p>
 
           <p
             className="text-lg md:text-xl max-w-xl mx-auto mb-10 animate-fade-up"
-            style={{ animationDelay: '0.2s', color: 'rgba(156,163,175,0.9)', lineHeight: 1.7, letterSpacing: '-0.01em' }}
+            style={{ animationDelay: '0.22s', color: 'rgba(156,163,175,0.9)', lineHeight: 1.7, letterSpacing: '-0.01em' }}
           >
             Dinos qué quieres comprar. Nosotros guardamos tu dinero y solo lo liberamos cuando hayas recibido lo que pediste.
           </p>

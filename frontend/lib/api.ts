@@ -48,6 +48,15 @@ export const dealsApi = {
   confirm: (id: string) => api.patch(`/deals/${id}/confirm`).then((r) => r.data),
   cancel: (id: string) => api.delete(`/deals/${id}`).then((r) => r.data),
   allAdmin: () => api.get('/deals/admin/all').then((r) => r.data),
+  // Evidencias — obligatorias antes de completar el trato
+  getEvidence: (dealId: string) => api.get(`/deals/${dealId}/evidence`).then((r) => r.data),
+  addEvidence: (dealId: string, data: { url: string; description: string }) =>
+    api.post(`/deals/${dealId}/evidence`, data).then((r) => r.data),
+  // Flujo "Compra Gestionada"
+  setAwaitingApproval: (dealId: string) =>
+    api.patch(`/deals/${dealId}/awaiting-approval`).then((r) => r.data),
+  approveService: (dealId: string) =>
+    api.patch(`/deals/${dealId}/approve`).then((r) => r.data),
 };
 
 // ---- Payments ----
@@ -83,6 +92,11 @@ export const notificationsApi = {
 
 // ---- Users ----
 export const usersApi = {
-  dashboard: () => api.get('/users/dashboard').then((r) => r.data),
+  // Timestamp en URL fuerza invalidación de caché en cada llamada
+  dashboard: () => api.get(`/users/dashboard?_t=${Date.now()}`).then((r) => r.data),
   list: () => api.get('/users').then((r) => r.data),
+  // Admin: eliminar y actualizar credenciales de cualquier cuenta
+  deleteUser: (id: string) => api.delete(`/users/${id}`).then((r) => r.data),
+  updateCredentials: (id: string, data: { name?: string; email?: string; password?: string }) =>
+    api.patch(`/users/${id}/credentials`, data).then((r) => r.data),
 };

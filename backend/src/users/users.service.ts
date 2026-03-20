@@ -1,5 +1,6 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ConflictException } from '@nestjs/common';
 import { SpacetimeService } from '../spacetime/spacetime.service';
+import * as bcrypt from 'bcryptjs';
 
 const unwrap = (v: any) =>
   v && typeof v === 'object' && 'some' in v
@@ -175,5 +176,54 @@ export class UsersService {
       read: n.read,
       createdAt: new Date(n.created_at),
     };
+  }
+
+  // Elimina un usuario — solo si no tiene deals activos
+  async deleteUser(id: string) {
+    const user = await this.spacetime.sqlOne<DbUser>(
+      `SELECT * FROM user WHERE id = '${id.replace(/'/g, "''")}'`,
+    );
+    if (!user) throw new NotFoundException('User not found');
+
+    // Verificar deals activos: consulta todas las columnas para filtrar por status client-side
+    const deals = await this.spacetime.sql<{ id: string; status: string }>(
+      `SELECT id, status FROM deal WHERE buyer_id = '${id.replace(/'/g, "''")}' OR seller_id = '${id.replace(/'/g, "''")}'`,
+    );
+    const activeStatuses = ['PENDING', 'FUNDED', 'DELIVERED', 'AWAITING_APPROVAL', 'DISPUTED'];
+    const activeDeals = deals.filter((d) => activeStatuses.includes(d.status));
+    if (activeDeals.length > 0) {
+      throw new BadRequestException(
+        `No se puede eliminar: el usuario tiene ${activeDeals.length} trato(s) activo(s). Resuélvelos primero.`,
+      );
+    }
+
+    await this.spacetime.call('delete_user', [id]);
+    return { deleted: true, id };
+  }
+
+  // Actualiza nombre, email y/o contraseña — solo desde panel de admin
+  async updateCredentials(id: string, dto: { name?: string; email?: string; password?: string }) {
+    const user = await this.spacetime.sqlOne<DbUser>(
+      `SELECT * FROM user WHERE id = '${id.replace(/'/g, "''")}'`,
+    );
+    if (!user) throw new NotFoundException('User not found');
+
+    // Verificar que el nuevo email no esté en uso por otro usuario
+    if (dto.email && dto.email !== user.email) {
+      const existing = await this.spacetime.sqlOne<DbUser>(
+        `SELECT * FROM user WHERE email = '${dto.email.replace(/'/g, "''")}'`,
+      );
+      if (existing) throw new ConflictException('El email ya está en uso por otro usuario');
+    }
+
+    const newName = dto.name ?? user.name;
+    const newEmail = dto.email ?? user.email;
+    // Si se provee nueva contraseña, hashearla; sino usar la existente
+    const newPassword = dto.password
+      ? await bcrypt.hash(dto.password, 10)
+      : (unwrap(user.password) as string) ?? user.password;
+
+    await this.spacetime.call('update_user_credentials', [id, newName, newEmail, newPassword]);
+    return { id, name: newName, email: newEmail, role: user.role };
   }
 }

@@ -4,8 +4,10 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { DealsService } from './deals.service';
+import { EvidenceService } from '../evidence/evidence.service';
 import { CreateDealDto } from './dto/create-deal.dto';
 import { MarkDeliveredDto } from './dto/update-deal.dto';
+import { CreateEvidenceDto } from '../evidence/dto/create-evidence.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -17,7 +19,10 @@ import { Role } from '../common/enums';
 @UseGuards(JwtAuthGuard)
 @Controller('deals')
 export class DealsController {
-  constructor(private dealsService: DealsService) {}
+  constructor(
+    private dealsService: DealsService,
+    private evidenceService: EvidenceService,
+  ) {}
 
   @Post()
   @ApiOperation({ summary: 'Create a new deal (buyer initiates)' })
@@ -57,7 +62,7 @@ export class DealsController {
   }
 
   @Patch(':id/confirm')
-  @ApiOperation({ summary: 'Buyer confirms receipt and releases payment' })
+  @ApiOperation({ summary: 'Buyer confirms receipt and releases payment (requires evidence)' })
   confirmReceipt(@Param('id') id: string, @CurrentUser('id') userId: string) {
     return this.dealsService.confirmReceipt(id, userId);
   }
@@ -66,5 +71,39 @@ export class DealsController {
   @ApiOperation({ summary: 'Cancel a pending deal' })
   cancel(@Param('id') id: string, @CurrentUser('id') userId: string): Promise<any> {
     return this.dealsService.cancel(id, userId);
+  }
+
+  // ─── Evidencias ──────────────────────────────────────────────────────────
+
+  @Post(':id/evidence')
+  @ApiOperation({ summary: 'Upload evidence for a deal (required before completion)' })
+  addEvidence(
+    @Param('id') dealId: string,
+    @CurrentUser() user: any,
+    @Body() dto: CreateEvidenceDto,
+  ) {
+    return this.evidenceService.create(dealId, user.id, dto, user.role);
+  }
+
+  @Get(':id/evidence')
+  @ApiOperation({ summary: 'List all evidence for a deal' })
+  getEvidence(@Param('id') dealId: string) {
+    return this.evidenceService.findForDeal(dealId);
+  }
+
+  // ─── Flujo de Compra Gestionada ──────────────────────────────────────────
+
+  @Patch(':id/awaiting-approval')
+  @UseGuards(RolesGuard)
+  @Roles(Role.ADMIN)
+  @ApiOperation({ summary: 'Admin: move deal to AWAITING_APPROVAL after uploading evidence' })
+  setAwaitingApproval(@Param('id') id: string) {
+    return this.dealsService.setAwaitingApproval(id);
+  }
+
+  @Patch(':id/approve')
+  @ApiOperation({ summary: 'Buyer approves platform evidence to unblock the deal' })
+  approveService(@Param('id') id: string, @CurrentUser('id') userId: string) {
+    return this.dealsService.approveService(id, userId);
   }
 }

@@ -37,6 +37,8 @@ public partial struct DbDeal
     public long? DeliveredAt;
     public long? CompletedAt;
     public long? RefundedAt;
+    // Campo para "Compra Gestionada" — URL del producto que el cliente quiere adquirir
+    public string? ProductUrl;
     public long CreatedAt;
     public long UpdatedAt;
 }
@@ -68,6 +70,19 @@ public partial struct DbNotification
     public string Title;
     public string Message;
     public bool Read;
+    public long CreatedAt;
+}
+
+// Tabla de evidencias: documentos/fotos que deben subirse antes de completar el trato
+[SpacetimeDB.Table(Name = "evidence", Public = true)]
+public partial struct DbEvidence
+{
+    [SpacetimeDB.PrimaryKey]
+    public string Id;
+    public string DealId;
+    public string UploadedById;
+    public string Url;
+    public string Description;
     public long CreatedAt;
 }
 
@@ -111,6 +126,25 @@ public static partial class Module
         });
     }
 
+    // Actualiza nombre, email y contraseña desde el panel de admin
+    [SpacetimeDB.Reducer]
+    public static void UpdateUserCredentials(ReducerContext ctx, string id, string name, string email, string hashedPassword)
+    {
+        var user = ctx.Db.DbUser.Id.Find(id);
+        if (user is null) throw new Exception($"User {id} not found");
+        long now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        ctx.Db.DbUser.Id.Update(new DbUser
+        {
+            Id = id,
+            Email = email,
+            Name = name,
+            Password = hashedPassword,
+            Role = user.Value.Role,
+            CreatedAt = user.Value.CreatedAt,
+            UpdatedAt = now,
+        });
+    }
+
     [SpacetimeDB.Reducer]
     public static void SetUserRole(ReducerContext ctx, string id, string role)
     {
@@ -147,6 +181,15 @@ public static partial class Module
         });
     }
 
+    // Elimina un usuario — solo debe llamarse desde el backend después de validar que no tiene deals activos
+    [SpacetimeDB.Reducer]
+    public static void DeleteUser(ReducerContext ctx, string id)
+    {
+        var user = ctx.Db.DbUser.Id.Find(id);
+        if (user is null) throw new Exception($"User {id} not found");
+        ctx.Db.DbUser.Id.Delete(id);
+    }
+
     // ─── Deal Reducers ───────────────────────────────────────────────────
 
     [SpacetimeDB.Reducer]
@@ -162,7 +205,9 @@ public static partial class Module
         string status,
         long deadline,
         string buyerId,
-        string sellerId)
+        string sellerId,
+        // URL del producto para modo "Compra Gestionada" (nullable)
+        string? productUrl)
     {
         long now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
         ctx.Db.DbDeal.Insert(new DbDeal
@@ -184,6 +229,7 @@ public static partial class Module
             DeliveredAt = null,
             CompletedAt = null,
             RefundedAt = null,
+            ProductUrl = productUrl,
             CreatedAt = now,
             UpdatedAt = now,
         });
@@ -362,5 +408,29 @@ public static partial class Module
                 ctx.Db.DbNotification.Id.Update(updated);
             }
         }
+    }
+
+    // ─── Evidence Reducers ───────────────────────────────────────────────
+
+    // Guarda una evidencia (foto/URL) obligatoria antes de completar el trato
+    [SpacetimeDB.Reducer]
+    public static void CreateEvidence(
+        ReducerContext ctx,
+        string id,
+        string dealId,
+        string uploadedById,
+        string url,
+        string description)
+    {
+        long now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        ctx.Db.DbEvidence.Insert(new DbEvidence
+        {
+            Id = id,
+            DealId = dealId,
+            UploadedById = uploadedById,
+            Url = url,
+            Description = description,
+            CreatedAt = now,
+        });
     }
 }

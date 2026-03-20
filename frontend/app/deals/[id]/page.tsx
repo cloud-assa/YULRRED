@@ -6,7 +6,7 @@ import Link from 'next/link';
 import toast from 'react-hot-toast';
 import { useForm } from 'react-hook-form';
 import { motion, AnimatePresence } from 'framer-motion';
-import { dealsApi, paymentsApi, disputesApi } from '@/lib/api';
+import { dealsApi, paymentsApi, disputesApi, usersApi } from '@/lib/api';
 import { formatCurrency, formatDate, formatRelative } from '@/lib/utils';
 import { DealStatusBadge, DisputeStatusBadge } from '@/components/ui/StatusBadge';
 import ProgressStepper from '@/components/ui/ProgressStepper';
@@ -14,7 +14,8 @@ import FeeCalculator from '@/components/ui/FeeCalculator';
 import Avatar from '@/components/ui/Avatar';
 import {
   ArrowLeft, Wallet, Package, CheckCircle2, Clock, Lock, Loader2,
-  ShoppingCart, AlertTriangle, PartyPopper, Scale, Calendar, XCircle, ClipboardList
+  ShoppingCart, AlertTriangle, PartyPopper, Scale, Calendar, XCircle, ClipboardList,
+  ImagePlus, ExternalLink, ShoppingBag, ThumbsUp,
 } from 'lucide-react';
 
 function PaymentSection({ deal, onFunded }: { deal: any; onFunded: () => void }) {
@@ -181,6 +182,168 @@ function CancelButton({ dealId, onCancelled }: { dealId: string; onCancelled: ()
     <button onClick={handleCancel} disabled={loading} className="btn-danger-glass w-full">
       {loading ? <><Loader2 className="w-4 h-4 animate-spin" />Cancelando...</> : <><XCircle className="w-4 h-4" />Cancelar Trato</>}
     </button>
+  );
+}
+
+// ── Evidencias (obligatorias antes de completar) ─────────────────────────────
+
+function EvidenceSection({
+  dealId, deal, isBuyer, isSeller, isAdmin, onReload,
+}: {
+  dealId: string; deal: any; isBuyer: boolean; isSeller: boolean; isAdmin: boolean; onReload: () => void;
+}) {
+  const [evidences, setEvidences] = useState<any[]>([]);
+  const [showForm, setShowForm] = useState(false);
+  const [loadingUpload, setLoadingUpload] = useState(false);
+  const { register, handleSubmit, reset, formState: { errors } } = useForm<{ url: string; description: string }>();
+
+  // Cargar evidencias al montar o cuando cambia el deal
+  useEffect(() => {
+    dealsApi.getEvidence(dealId).then(setEvidences).catch(() => {});
+  }, [dealId, deal.status]);
+
+  const onSubmit = async (data: { url: string; description: string }) => {
+    setLoadingUpload(true);
+    try {
+      await dealsApi.addEvidence(dealId, data);
+      toast.success('Evidencia subida correctamente');
+      reset();
+      setShowForm(false);
+      const updated = await dealsApi.getEvidence(dealId);
+      setEvidences(updated);
+    } catch (err: any) { toast.error(err.message); }
+    finally { setLoadingUpload(false); }
+  };
+
+  // Solo mostrar en deals activos (FUNDED en adelante)
+  if (!['FUNDED', 'AWAITING_APPROVAL', 'DELIVERED', 'COMPLETED', 'DISPUTED'].includes(deal.status)) return null;
+  const canUpload = (isBuyer || isSeller || isAdmin) && deal.status !== 'COMPLETED';
+
+  return (
+    <div className="glass p-5 space-y-4" style={{ borderLeft: '3px solid rgba(0,212,255,0.4)' }}>
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <div className="flex items-center gap-2">
+          <div className="p-2 rounded-xl bg-cyan-500/15 ring-1 ring-cyan-500/20">
+            <ImagePlus className="w-4 h-4 text-cyan-400" />
+          </div>
+          <div>
+            <h3 className="font-semibold text-white text-sm">Evidencias del Trato</h3>
+            <p className="text-[10px] text-gray-500">Requeridas antes de completar la transacción</p>
+          </div>
+        </div>
+        {canUpload && (
+          <button onClick={() => setShowForm(!showForm)} className="btn-ghost text-xs py-1.5 px-3">
+            {showForm ? 'Cancelar' : '+ Subir Evidencia'}
+          </button>
+        )}
+      </div>
+
+      {/* Formulario para subir evidencia */}
+      {showForm && (
+        <motion.form
+          initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }}
+          onSubmit={handleSubmit(onSubmit)} className="space-y-3"
+        >
+          <div className="space-y-1.5">
+            <label className="block text-xs text-gray-500">URL de la evidencia (foto, video, documento)</label>
+            <input
+              type="url"
+              placeholder="https://drive.google.com/file/... o https://imgur.com/..."
+              className="input-glass"
+              {...register('url', { required: 'La URL es requerida', pattern: { value: /^https?:\/\/.+/, message: 'URL inválida' } })}
+            />
+            {errors.url && <p className="text-xs text-red-400">{errors.url.message}</p>}
+          </div>
+          <div className="space-y-1.5">
+            <label className="block text-xs text-gray-500">Descripción</label>
+            <input
+              type="text"
+              placeholder="ej. Foto del producto empacado"
+              className="input-glass"
+              {...register('description', { required: 'La descripción es requerida', maxLength: { value: 1000, message: 'Máx. 1000 caracteres' } })}
+            />
+            {errors.description && <p className="text-xs text-red-400">{errors.description.message}</p>}
+          </div>
+          <button type="submit" disabled={loadingUpload} className="btn-glow w-full text-sm">
+            {loadingUpload ? <><Loader2 className="w-4 h-4 animate-spin" />Subiendo...</> : 'Subir Evidencia'}
+          </button>
+        </motion.form>
+      )}
+
+      {/* Lista de evidencias */}
+      {evidences.length === 0 ? (
+        <p className="text-sm text-gray-600 text-center py-2">
+          {deal.status === 'DELIVERED'
+            ? <span className="text-amber-400 font-semibold">⚠ Se requiere al menos una evidencia antes de confirmar la recepción</span>
+            : 'Sin evidencias aún. Sube fotos o documentos del producto/servicio.'}
+        </p>
+      ) : (
+        <div className="space-y-2">
+          {evidences.map((ev: any) => (
+            <div key={ev.id} className="glass-sm p-3 flex items-start gap-3">
+              <a href={ev.url} target="_blank" rel="noopener noreferrer"
+                className="p-1.5 rounded-lg bg-cyan-500/10 ring-1 ring-cyan-500/20 shrink-0 hover:bg-cyan-500/20 transition-colors">
+                <ExternalLink className="w-3.5 h-3.5 text-cyan-400" />
+              </a>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm text-white truncate">{ev.description}</p>
+                <p className="text-[10px] text-gray-500 mt-0.5">{formatRelative(ev.createdAt)}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Sección AWAITING_APPROVAL (Compra Gestionada) ────────────────────────────
+
+function AwaitingApprovalSection({ deal, isBuyer, onApproved }: { deal: any; isBuyer: boolean; onApproved: () => void }) {
+  const [loading, setLoading] = useState(false);
+
+  const handleApprove = async () => {
+    setLoading(true);
+    try {
+      await dealsApi.approveService(deal.id);
+      toast.success('¡Aprobado! El trato continúa.');
+      onApproved();
+    } catch (err: any) { toast.error(err.message); }
+    finally { setLoading(false); }
+  };
+
+  return (
+    <div className="glass p-5 space-y-4" style={{ borderLeft: '3px solid rgba(59,130,246,0.5)', background: 'rgba(59,130,246,0.03)' }}>
+      <div className="flex items-center gap-2">
+        <div className="p-2 rounded-xl bg-blue-500/15 ring-1 ring-blue-500/20">
+          <ShoppingBag className="w-4 h-4 text-blue-400" />
+        </div>
+        <div>
+          <h3 className="font-semibold text-white">Compra Gestionada — Tu Aprobación</h3>
+          <p className="text-xs text-gray-500">La plataforma inspeccionó el producto</p>
+        </div>
+      </div>
+      <p className="text-sm text-gray-400">
+        La plataforma ha revisado el producto y subido evidencias. Por favor revísalas abajo y aprueba para que podamos proceder con la entrega.
+      </p>
+      {deal.productUrl && (
+        <a href={deal.productUrl} target="_blank" rel="noopener noreferrer"
+          className="flex items-center gap-2 text-sm text-cyan-400 hover:text-cyan-300 transition-colors">
+          <ExternalLink className="w-4 h-4" />
+          Ver producto original
+        </a>
+      )}
+      {isBuyer && (
+        <button onClick={handleApprove} disabled={loading} className="btn-glow w-full">
+          {loading ? <><Loader2 className="w-4 h-4 animate-spin" />Procesando...</> : <><ThumbsUp className="w-4 h-4" />Aprobar — Continuar con la Compra</>}
+        </button>
+      )}
+      {!isBuyer && (
+        <p className="text-sm text-blue-400 flex items-center gap-1.5">
+          <Clock className="w-4 h-4" /> Esperando aprobación del comprador...
+        </p>
+      )}
+    </div>
   );
 }
 
@@ -449,10 +612,11 @@ function ProductInspectionSection({
 // ─────────────────────────────────────────────────────────────────────────────
 
 const STEPS = [
-  { key: 'PENDING',   label: 'Pendiente',  icon: Clock },
-  { key: 'FUNDED',    label: 'Fondeado',   icon: Wallet },
-  { key: 'DELIVERED', label: 'Entregado',  icon: Package },
-  { key: 'COMPLETED', label: 'Completado', icon: CheckCircle2 },
+  { key: 'PENDING',            label: 'Pendiente',  icon: Clock },
+  { key: 'FUNDED',             label: 'Fondeado',   icon: Wallet },
+  { key: 'AWAITING_APPROVAL',  label: 'Aprobación', icon: ShoppingBag },
+  { key: 'DELIVERED',          label: 'Entregado',  icon: Package },
+  { key: 'COMPLETED',          label: 'Completado', icon: CheckCircle2 },
 ];
 
 export default function DealDetailPage() {
@@ -491,6 +655,7 @@ export default function DealDetailPage() {
 
   const isBuyer  = deal.buyer?.id  === session?.user?.id;
   const isSeller = deal.seller?.id === session?.user?.id;
+  const isAdmin  = (session as any)?.user?.role === 'ADMIN';
   const currentStepIdx = STEPS.findIndex((s) => s.key === deal.status);
 
   return (
@@ -536,6 +701,22 @@ export default function DealDetailPage() {
                 </div>
               ))}
             </div>
+            {deal.productUrl && (
+              <div className="pt-2 border-t border-white/[0.06]">
+                <p className="text-[10px] text-gray-600 uppercase tracking-wider mb-1.5 flex items-center gap-1">
+                  <ShoppingBag className="w-3 h-3" />Compra Gestionada
+                </p>
+                <a
+                  href={deal.productUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1.5 text-sm text-cyan-400 hover:text-cyan-300 transition-colors truncate"
+                >
+                  <ExternalLink className="w-3.5 h-3.5 shrink-0" />
+                  {deal.productUrl}
+                </a>
+              </div>
+            )}
           </div>
 
           {/* Parties */}
@@ -559,6 +740,16 @@ export default function DealDetailPage() {
               ))}
             </div>
           </div>
+
+          {/* Evidence */}
+          <EvidenceSection
+            dealId={id}
+            deal={deal}
+            isBuyer={isBuyer}
+            isSeller={isSeller}
+            isAdmin={isAdmin}
+            onReload={loadDeal}
+          />
 
           {/* Product Inspection */}
           <ProductInspectionSection
@@ -603,6 +794,9 @@ export default function DealDetailPage() {
         <div className="lg:col-span-2 space-y-4">
           {deal.status === 'PENDING' && isBuyer && <PaymentSection deal={deal} onFunded={loadDeal} />}
           {deal.status === 'FUNDED' && isSeller && <DeliverSection deal={deal} onDelivered={loadDeal} />}
+          {deal.status === 'AWAITING_APPROVAL' && (
+            <AwaitingApprovalSection deal={deal} isBuyer={isBuyer} onApproved={loadDeal} />
+          )}
           {deal.status === 'DELIVERED' && isBuyer && (
             <ConfirmSection deal={deal} onConfirmed={loadDeal} forceOpenDispute={openDisputeFromInspection} />
           )}

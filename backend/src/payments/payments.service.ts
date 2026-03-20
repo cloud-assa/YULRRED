@@ -140,7 +140,7 @@ export class PaymentsService {
     await this.spacetime.call('update_deal_status', [dealId, DealStatus.FUNDED]);
 
     await Promise.all([
-      this.notifications.create(deal.buyer_id, dealId, 'DEAL_FUNDED', 'Deal Funded!', `Your payment of $${deal.amount} for "${deal.title}" has been received and held securely.`),
+      this.notifications.create(deal.buyer_id, dealId, 'DEAL_FUNDED', 'Deal Funded!', `Your payment of S/ ${deal.amount} for "${deal.title}" has been received and held securely.`),
       this.notifications.create(deal.seller_id, dealId, 'DEAL_FUNDED', 'Deal Funded!', `The buyer has funded the deal "${deal.title}". You can now proceed with delivery.`),
     ]);
 
@@ -229,7 +229,7 @@ export class PaymentsService {
     ]);
 
     await Promise.all([
-      this.notifications.create(deal.seller_id, dealId, 'FUNDS_RELEASED', 'Funds Released!', `$${deal.net_amount} (after ${deal.fee_amount} platform fee) has been released for "${deal.title}".`),
+      this.notifications.create(deal.seller_id, dealId, 'FUNDS_RELEASED', 'Funds Released!', `S/ ${deal.net_amount} (after ${deal.fee_amount} platform fee) has been released for "${deal.title}".`),
       this.notifications.create(deal.buyer_id, dealId, 'DEAL_COMPLETED', 'Deal Completed', `Deal "${deal.title}" is now complete. Funds have been released to the seller.`),
     ]);
 
@@ -264,7 +264,7 @@ export class PaymentsService {
       dealId,
       'FUNDS_REFUNDED',
       'Refund Issued',
-      `Your $${deal.amount} payment for "${deal.title}" has been refunded.`,
+      `Your S/ ${deal.amount} payment for "${deal.title}" has been refunded.`,
     );
 
     const updated = await this.getDealById(dealId);

@@ -5,6 +5,7 @@ export enum Role {
 
 export enum DealStatus {
   PENDING = 'PENDING',
+  AWAITING_APPROVAL = 'AWAITING_APPROVAL', // Plataforma subió evidencias; espera OK del comprador
   FUNDED = 'FUNDED',
   DELIVERED = 'DELIVERED',
   COMPLETED = 'COMPLETED',

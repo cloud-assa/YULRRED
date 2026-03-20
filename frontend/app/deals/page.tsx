@@ -17,19 +17,20 @@ const STATUS_LABELS: Record<string, string> = {
 
 export default function DealsPage() {
   const { data: session, status } = useSession();
+  const accessToken = (session as any)?.accessToken as string | null | undefined;
   const [deals, setDeals] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('ALL');
   const [retry, setRetry] = useState(0);
 
   useEffect(() => {
-    if (status !== 'authenticated') return;
+    if (status !== 'authenticated' || !accessToken) return;
     setLoading(true);
     dealsApi.list()
       .then(setDeals)
       .catch(() => toast.error('Error al cargar los tratos'))
       .finally(() => setLoading(false));
-  }, [status, retry]);
+  }, [status, accessToken, retry]);
 
   const statuses = ['ALL', 'PENDING', 'FUNDED', 'DELIVERED', 'COMPLETED', 'DISPUTED'];
   const filtered = filter === 'ALL' ? deals : deals.filter((d) => d.status === filter);
