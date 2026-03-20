@@ -32,7 +32,7 @@ export class SpacetimeService {
     this.client = axios.create({
       baseURL: baseUrl,
       headers: { 'Authorization': `Bearer ${token}` },
-      timeout: 15000,
+      timeout: 8000,
     });
   }
 
@@ -71,7 +71,7 @@ export class SpacetimeService {
     const inner = obj[key];
 
     // Option<T>: {some: v} or {none: []}
-    if (key === 'some') return inner;
+    if (key === 'some') return this.unwrapValue(inner); // recursive — handles {some: {I64: 123}}
     if (key === 'none') return null;
 
     // BSATN scalar wrappers: {String:"v"}, {Bool:true}, {I64:123}, {F64:1.5}, etc.

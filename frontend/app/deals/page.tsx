@@ -20,14 +20,16 @@ export default function DealsPage() {
   const [deals, setDeals] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('ALL');
+  const [retry, setRetry] = useState(0);
 
   useEffect(() => {
     if (status !== 'authenticated') return;
+    setLoading(true);
     dealsApi.list()
       .then(setDeals)
       .catch(() => toast.error('Error al cargar los tratos'))
       .finally(() => setLoading(false));
-  }, [status]);
+  }, [status, retry]);
 
   const statuses = ['ALL', 'PENDING', 'FUNDED', 'DELIVERED', 'COMPLETED', 'DISPUTED'];
   const filtered = filter === 'ALL' ? deals : deals.filter((d) => d.status === filter);
@@ -48,6 +50,12 @@ export default function DealsPage() {
       />
 
       <FilterTabs options={tabOptions} value={filter} onChange={setFilter} />
+
+      <div className="flex justify-end mb-1">
+        <button className="text-xs text-gray-500 hover:text-gray-300 transition-colors" onClick={() => setRetry((r) => r + 1)}>
+          ↻ Actualizar
+        </button>
+      </div>
 
       {loading ? (
         <div className="space-y-3">

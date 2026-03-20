@@ -47,13 +47,17 @@ export class NotificationsService {
   }
 
   async findForUser(userId: string) {
-    const allRows = await this.spacetime.sql<DbNotification>(
-      `SELECT * FROM notification WHERE user_id = '${userId.replace(/'/g, "''")}'`,
-    );
-    const rows = allRows
-      .sort((a, b) => b.created_at - a.created_at)
-      .slice(0, 50);
-    return rows.map(this.toNotification);
+    try {
+      const allRows = await this.spacetime.sql<DbNotification>(
+        `SELECT * FROM notification WHERE user_id = '${userId.replace(/'/g, "''")}'`,
+      );
+      const rows = allRows
+        .sort((a, b) => b.created_at - a.created_at)
+        .slice(0, 50);
+      return rows.map(this.toNotification);
+    } catch {
+      return [];
+    }
   }
 
   async markRead(id: string, userId: string) {
@@ -67,17 +71,22 @@ export class NotificationsService {
   }
 
   async markAllRead(userId: string) {
-    const unread = await this.spacetime.sql<DbNotification>(
-      `SELECT * FROM notification WHERE user_id = '${userId.replace(/'/g, "''")}' AND read = false`,
+    const all = await this.spacetime.sql<DbNotification>(
+      `SELECT * FROM notification WHERE user_id = '${userId.replace(/'/g, "''")}'`,
     );
+    const unread = all.filter((n) => !n.read);
     await Promise.all(unread.map((n) => this.spacetime.call('mark_notification_read', [n.id])));
     return { count: unread.length };
   }
 
   async getUnreadCount(userId: string) {
-    const unread = await this.spacetime.sql<DbNotification>(
-      `SELECT * FROM notification WHERE user_id = '${userId.replace(/'/g, "''")}' AND read = false`,
-    );
-    return { count: unread.length };
+    try {
+      const all = await this.spacetime.sql<DbNotification>(
+        `SELECT * FROM notification WHERE user_id = '${userId.replace(/'/g, "''")}'`,
+      );
+      return { count: all.filter((n) => !n.read).length };
+    } catch {
+      return { count: 0 };
+    }
   }
 }

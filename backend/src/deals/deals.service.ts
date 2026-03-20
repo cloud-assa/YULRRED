@@ -211,36 +211,39 @@ export class DealsService {
   }
 
   async findAll(userId: string) {
-    const escapedId = this.esc(userId);
-    const deals = (
-      await this.spacetime.sql<DbDeal>(
-        `SELECT * FROM deal WHERE buyer_id = '${escapedId}' OR seller_id = '${escapedId}'`,
-      )
-    ).sort((a, b) => b.created_at - a.created_at);
+    try {
+      const escapedId = this.esc(userId);
+      const deals = (
+        await this.spacetime.sql<DbDeal>(
+          `SELECT * FROM deal WHERE buyer_id = '${escapedId}' OR seller_id = '${escapedId}'`,
+        )
+      ).sort((a, b) => b.created_at - a.created_at);
 
-    // Fetch only involved users instead of the whole table
-    const involvedIds = [...new Set([
-      ...deals.map((d) => d.buyer_id),
-      ...deals.map((d) => d.seller_id),
-    ])];
-    let userMap = new Map<string, DbUser>();
-    if (involvedIds.length > 0) {
-      const idConditions = involvedIds.map((id) => `id = '${this.esc(id)}'`).join(' OR ');
-      const users = await this.spacetime.sql<DbUser>(`SELECT * FROM user WHERE ${idConditions}`);
-      userMap = new Map(users.map((u) => [u.id, u]));
+      const involvedIds = [...new Set([
+        ...deals.map((d) => d.buyer_id),
+        ...deals.map((d) => d.seller_id),
+      ])];
+      let userMap = new Map<string, DbUser>();
+      if (involvedIds.length > 0) {
+        const idConditions = involvedIds.map((id) => `id = '${this.esc(id)}'`).join(' OR ');
+        const users = await this.spacetime.sql<DbUser>(`SELECT * FROM user WHERE ${idConditions}`);
+        userMap = new Map(users.map((u) => [u.id, u]));
+      }
+
+      return Promise.all(
+        deals.map(async (deal) => {
+          const dispute = await this.getDisputeByDealId(deal.id);
+          return this.toDeal(
+            deal,
+            userMap.get(deal.buyer_id) ?? null,
+            userMap.get(deal.seller_id) ?? null,
+            dispute,
+          );
+        }),
+      );
+    } catch {
+      return [];
     }
-
-    return Promise.all(
-      deals.map(async (deal) => {
-        const dispute = await this.getDisputeByDealId(deal.id);
-        return this.toDeal(
-          deal,
-          userMap.get(deal.buyer_id) ?? null,
-          userMap.get(deal.seller_id) ?? null,
-          dispute,
-        );
-      }),
-    );
   }
 
   async findOne(id: string, userId: string) {
@@ -338,7 +341,9 @@ export class DealsService {
     }
 
     await this.spacetime.call('cancel_deal', [id]);
-    return this.getDealById(id);
+    const updated = await this.getDealById(id);
+    if (!updated) throw new NotFoundException('Deal not found after cancellation');
+    return this.toDeal(updated);
   }
 
   async getAllAdmin() {

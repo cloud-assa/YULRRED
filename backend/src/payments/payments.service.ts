@@ -144,7 +144,9 @@ export class PaymentsService {
       this.notifications.create(deal.seller_id, dealId, 'DEAL_FUNDED', 'Deal Funded!', `The buyer has funded the deal "${deal.title}". You can now proceed with delivery.`),
     ]);
 
-    return this.getDealById(dealId);
+    const updated = await this.getDealById(dealId);
+    if (!updated) throw new NotFoundException('Deal not found after funding');
+    return this.toDealShape(updated);
   }
 
   /**

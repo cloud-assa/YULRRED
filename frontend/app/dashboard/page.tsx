@@ -14,16 +14,22 @@ import { TrendingUp, Zap, ShoppingCart, Package, Info, Handshake, Bell, Plus } f
 
 export default function DashboardPage() {
   const { data: session, status } = useSession();
+  const accessToken = (session as any)?.accessToken as string | null | undefined;
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+  const [retry, setRetry] = useState(0);
 
   useEffect(() => {
-    if (status !== 'authenticated') return;
+    if (status === 'loading') return;
+    if (status !== 'authenticated' || !accessToken) return;
+    setLoading(true);
+    setError(false);
     usersApi.dashboard()
-      .then(setData)
-      .catch(() => toast.error('Error al cargar el panel'))
+      .then((d) => { setData(d); setError(false); })
+      .catch(() => { toast.error('Error al cargar el panel. Intenta de nuevo.'); setError(true); })
       .finally(() => setLoading(false));
-  }, [status]);
+  }, [status, accessToken, retry]);
 
   if (loading) {
     return (
@@ -37,6 +43,17 @@ export default function DashboardPage() {
             </div>
           ))}
         </div>
+      </div>
+    );
+  }
+
+  if (error && !data) {
+    return (
+      <div className="max-w-6xl mx-auto flex flex-col items-center justify-center py-24 gap-4">
+        <p className="text-gray-400 text-sm">No se pudo cargar el panel. Verifica tu conexión.</p>
+        <button className="btn-ghost py-2 px-6 text-sm" onClick={() => setRetry((r) => r + 1)}>
+          Reintentar
+        </button>
       </div>
     );
   }

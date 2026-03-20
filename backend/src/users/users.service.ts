@@ -84,14 +84,9 @@ export class UsersService {
       .sort((a, b) => b.created_at - a.created_at)
       .slice(0, 10);
 
-    const buyerDeals = allDeals
-      .filter((d) => d.buyer_id === userId)
-      .slice(0, 5);
-    const sellerDeals = allDeals
-      .filter((d) => d.seller_id === userId)
-      .slice(0, 5);
+    const buyerDeals = allDeals.filter((d) => d.buyer_id === userId).slice(0, 5);
+    const sellerDeals = allDeals.filter((d) => d.seller_id === userId).slice(0, 5);
 
-    // Fetch only the users involved in these deals (not the whole table)
     const involvedIds = [...new Set([
       ...allDeals.map((d) => d.buyer_id),
       ...allDeals.map((d) => d.seller_id),
@@ -115,17 +110,9 @@ export class UsersService {
       };
     };
 
-    const completedDeals = allDeals.filter(
-      (d) =>
-        (d.buyer_id === userId || d.seller_id === userId) &&
-        d.status === 'COMPLETED',
-    );
-    const totalVolume = completedDeals.reduce((sum, d) => sum + (d.amount || 0), 0);
-
+    const completedDeals = allDeals.filter((d) => d.status === 'COMPLETED');
     const activeDeals = allDeals.filter(
-      (d) =>
-        (d.buyer_id === userId || d.seller_id === userId) &&
-        (d.status === 'FUNDED' || d.status === 'DELIVERED'),
+      (d) => d.status === 'FUNDED' || d.status === 'DELIVERED',
     );
 
     return {
@@ -133,7 +120,7 @@ export class UsersService {
       sellerDeals: sellerDeals.map(enrichDeal),
       notifications: notifications.map(this.toNotification),
       stats: {
-        totalVolume,
+        totalVolume: completedDeals.reduce((sum, d) => sum + (d.amount || 0), 0),
         buyerDealsCount: allDeals.filter((d) => d.buyer_id === userId).length,
         sellerDealsCount: allDeals.filter((d) => d.seller_id === userId).length,
         activeDeals: activeDeals.length,

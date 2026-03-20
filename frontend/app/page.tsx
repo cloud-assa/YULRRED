@@ -9,7 +9,8 @@ import {
 } from 'lucide-react';
 import { AuroraBackground } from '@/components/ui/aurora-background';
 
-const sg = { fontFamily: "'Space Grotesk', sans-serif" };
+const sg  = { fontFamily: "'Space Grotesk', sans-serif" };
+const pjs = { fontFamily: "'Plus Jakarta Sans', 'Space Grotesk', sans-serif" };
 
 export default function LandingPage() {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -111,23 +112,36 @@ export default function LandingPage() {
         />
 
         <div className="relative z-10 max-w-3xl mx-auto text-center">
-          <div className="inline-flex items-center gap-2 glass-sm px-4 py-2 mb-8 animate-fade-up">
-            <span className="w-2 h-2 rounded-full bg-[#00D4FF] animate-pulse-dot shrink-0" style={{ boxShadow: '0 0 8px #00D4FF' }} aria-hidden="true" />
-            <span className="text-sm text-[#00D4FF] font-semibold">Compras seguras · 100% online</span>
+          <div
+            className="inline-flex items-center gap-2.5 px-4 py-2 mb-8 animate-fade-up rounded-full"
+            style={{
+              background: 'rgba(0,212,255,0.07)',
+              border: '1px solid rgba(0,212,255,0.22)',
+              boxShadow: '0 0 20px rgba(0,212,255,0.10)',
+              backdropFilter: 'blur(12px)',
+            }}
+          >
+            <span className="w-2 h-2 rounded-full bg-[#22D3EE] animate-pulse-dot shrink-0" style={{ boxShadow: '0 0 10px #22D3EE' }} aria-hidden="true" />
+            <span className="text-xs font-bold tracking-widest uppercase text-[#22D3EE]">Compras seguras · 100% online</span>
           </div>
 
           <h1
             id="hero-h"
-            className="font-extrabold leading-[1.08] mb-5 animate-fade-up"
-            style={{ ...sg, fontSize: 'clamp(36px, 6vw, 72px)', letterSpacing: '-0.03em', animationDelay: '0.1s' }}
+            className="font-black leading-[1.04] mb-6 animate-fade-up"
+            style={{
+              ...pjs,
+              fontSize: 'clamp(40px, 6.5vw, 80px)',
+              letterSpacing: '-0.04em',
+              animationDelay: '0.1s',
+            }}
           >
             Compra y vende online<br />
-            <span className="text-gradient">sin arriesgar tu dinero</span>
+            <span className="text-white">sin arriesgar tu dinero</span>
           </h1>
 
           <p
-            className="text-lg md:text-xl text-gray-400 max-w-xl mx-auto mb-10 leading-relaxed animate-fade-up"
-            style={{ animationDelay: '0.2s' }}
+            className="text-lg md:text-xl max-w-xl mx-auto mb-10 animate-fade-up"
+            style={{ animationDelay: '0.2s', color: 'rgba(156,163,175,0.9)', lineHeight: 1.7, letterSpacing: '-0.01em' }}
           >
             Dinos qué quieres comprar. Nosotros guardamos tu dinero y solo lo liberamos cuando hayas recibido lo que pediste.
           </p>
@@ -147,12 +161,12 @@ export default function LandingPage() {
           </div>
 
           <div
-            className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm text-gray-500 animate-fade-up"
+            className="flex flex-wrap items-center justify-center gap-x-7 gap-y-2.5 animate-fade-up"
             style={{ animationDelay: '0.4s' }}
           >
             {['Sin tarjeta para registrarse', 'Solo 5% de comisión', 'Si algo falla, te devolvemos el dinero'].map((t) => (
-              <span key={t} className="flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 text-[#00D4FF] shrink-0" aria-hidden="true" />
+              <span key={t} className="flex items-center gap-2 text-sm" style={{ color: 'rgba(156,163,175,0.75)' }}>
+                <CheckCircle2 className="w-4 h-4 shrink-0" style={{ color: '#22D3EE' }} aria-hidden="true" />
                 {t}
               </span>
             ))}
@@ -167,12 +181,12 @@ export default function LandingPage() {
             <div className="badge badge-cyan mb-4">Cómo funciona</div>
             <h2
               id="steps-h"
-              className="font-extrabold mb-3"
-              style={{ ...sg, fontSize: 'clamp(26px, 4vw, 44px)', letterSpacing: '-0.025em' }}
+              className="font-black mb-3"
+              style={{ ...pjs, fontSize: 'clamp(28px, 4.5vw, 48px)', letterSpacing: '-0.035em', lineHeight: 1.1 }}
             >
-              Simple como 1, 2, 3
+              Simple como <span className="text-white">1, 2, 3</span>
             </h2>
-            <p className="text-gray-400 text-lg max-w-sm mx-auto">
+            <p className="text-lg max-w-sm mx-auto" style={{ color: 'rgba(156,163,175,0.85)', lineHeight: 1.65 }}>
               No necesitas saber nada especial. Solo seguir los pasos.
             </p>
           </div>
@@ -221,8 +235,8 @@ export default function LandingPage() {
                       {s.step}
                     </span>
                   </div>
-                  <h3 id={`step-${i}`} className="font-bold text-base mb-2" style={sg}>{s.title}</h3>
-                  <p className="text-gray-500 text-sm leading-relaxed">{s.desc}</p>
+                  <h3 id={`step-${i}`} className="font-bold text-base mb-2" style={pjs}>{s.title}</h3>
+                  <p className="text-sm leading-relaxed" style={{ color: 'rgba(107,114,128,1)' }}>{s.desc}</p>
                 </article>
               );
             })}
@@ -250,12 +264,13 @@ export default function LandingPage() {
             <div className="badge badge-purple mb-4">Por qué elegirnos</div>
             <h2
               id="benefits-h"
-              className="font-extrabold mb-3"
-              style={{ ...sg, fontSize: 'clamp(26px, 4vw, 44px)', letterSpacing: '-0.025em' }}
+              className="font-black mb-3"
+              style={{ ...pjs, fontSize: 'clamp(28px, 4.5vw, 48px)', letterSpacing: '-0.035em', lineHeight: 1.1 }}
             >
-              Tu tranquilidad, nuestra prioridad
+              Tu tranquilidad,{' '}
+              <span className="text-white">nuestra prioridad</span>
             </h2>
-            <p className="text-gray-400 text-lg max-w-sm mx-auto">
+            <p className="text-lg max-w-sm mx-auto" style={{ color: 'rgba(156,163,175,0.85)', lineHeight: 1.65 }}>
               Diseñado para que cualquier persona pueda comprar y vender con confianza.
             </p>
           </div>
@@ -303,8 +318,8 @@ export default function LandingPage() {
                   <div className="w-11 h-11 rounded-xl flex items-center justify-center mb-4" style={{ background: b.bg }} aria-hidden="true">
                     <Icon className="w-5 h-5" style={{ color: b.color }} />
                   </div>
-                  <h3 id={`ben-${i}`} className="font-bold text-sm mb-2" style={sg}>{b.title}</h3>
-                  <p className="text-gray-500 text-sm leading-relaxed">{b.desc}</p>
+                  <h3 id={`ben-${i}`} className="font-bold text-sm mb-2" style={pjs}>{b.title}</h3>
+                  <p className="text-sm leading-relaxed" style={{ color: 'rgba(107,114,128,1)' }}>{b.desc}</p>
                 </article>
               );
             })}
@@ -319,12 +334,12 @@ export default function LandingPage() {
             <div className="badge badge-cyan mb-4">Precio</div>
             <h2
               id="pricing-h"
-              className="font-extrabold mb-3"
-              style={{ ...sg, fontSize: 'clamp(26px, 4vw, 44px)', letterSpacing: '-0.025em' }}
+              className="font-black mb-3"
+              style={{ ...pjs, fontSize: 'clamp(28px, 4.5vw, 48px)', letterSpacing: '-0.035em', lineHeight: 1.1 }}
             >
-              Sin letra pequeña
+              Sin letra <span className="text-white">pequeña</span>
             </h2>
-            <p className="text-gray-400 text-lg">Solo pagas si el trato se completa con éxito.</p>
+            <p className="text-lg" style={{ color: 'rgba(156,163,175,0.85)' }}>Solo pagas si el trato se completa con éxito.</p>
           </div>
 
           <div
@@ -334,8 +349,8 @@ export default function LandingPage() {
             <div className="grid md:grid-cols-2 gap-10 items-center">
               <div className="text-center md:text-left">
                 <div
-                  className="font-extrabold text-gradient mb-2"
-                  style={{ ...sg, fontSize: 'clamp(60px, 10vw, 96px)', letterSpacing: '-0.04em', lineHeight: 1 }}
+                  className="font-black text-white mb-2"
+                  style={{ ...pjs, fontSize: 'clamp(64px, 10vw, 100px)', letterSpacing: '-0.05em', lineHeight: 1 }}
                   aria-label="5 por ciento de comisión"
                 >
                   5%
@@ -391,11 +406,11 @@ export default function LandingPage() {
             <div className="relative z-10">
               <h2
                 id="cta-h"
-                className="font-extrabold mb-4"
-                style={{ ...sg, fontSize: 'clamp(24px, 4.5vw, 46px)', letterSpacing: '-0.025em' }}
+                className="font-black mb-4"
+                style={{ ...pjs, fontSize: 'clamp(26px, 4.5vw, 48px)', letterSpacing: '-0.04em', lineHeight: 1.1 }}
               >
                 ¿Listo para comprar<br />
-                <span className="text-gradient">sin riesgos?</span>
+                <span className="text-white">sin riesgos?</span>
               </h2>
               <p className="text-gray-400 text-lg mb-8 max-w-sm mx-auto leading-relaxed">
                 Crea tu cuenta en menos de 2 minutos. Completamente gratis para empezar.
