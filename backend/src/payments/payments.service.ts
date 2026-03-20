@@ -9,12 +9,17 @@ import { SpacetimeService } from '../spacetime/spacetime.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { DealStatus } from '../common/enums';
 
-const unwrap = (v: any) =>
-  v && typeof v === 'object' && 'some' in v
-    ? v.some
-    : v === null || (v && typeof v === 'object' && 'none' in v)
-    ? null
-    : v;
+// Recursive — sin recursión {some: {String: "pi_xxx"}} queda sin resolver
+const unwrap = (v: any): any => {
+  if (v === null || v === undefined) return null;
+  if (typeof v !== 'object') return v;
+  if ('none' in v) return null;
+  if ('some' in v) return unwrap(v.some);
+  const bsatnKeys = ['String','Bool','I8','I16','I32','I64','U8','U16','U32','U64','F32','F64'];
+  const keys = Object.keys(v);
+  if (keys.length === 1 && bsatnKeys.includes(keys[0])) return v[keys[0]];
+  return v;
+};
 
 interface DbDeal {
   id: string;
@@ -74,6 +79,13 @@ export class PaymentsService {
     return this.spacetime.sqlOne<DbUser>(`SELECT * FROM user WHERE id = '${this.esc(id)}'`);
   }
 
+  // String numérico coercion: SpacetimeDB puede serializar I64 como string en JSON
+  private ts(raw: unknown): Date {
+    if (raw === null || raw === undefined) return new Date(0);
+    const ms = typeof raw === 'string' ? Number(raw) : (raw as number);
+    return isNaN(ms) ? new Date(0) : new Date(ms);
+  }
+
   private toDealShape(deal: DbDeal) {
     return {
       id: deal.id,
@@ -86,8 +98,8 @@ export class PaymentsService {
       buyerId: deal.buyer_id,
       sellerId: deal.seller_id,
       stripePaymentIntentId: unwrap(deal.stripe_payment_intent_id),
-      deadline: new Date(deal.deadline),
-      createdAt: new Date(deal.created_at),
+      deadline: this.ts(unwrap(deal.deadline)),
+      createdAt: this.ts(unwrap(deal.created_at)),
     };
   }
 

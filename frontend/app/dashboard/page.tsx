@@ -23,8 +23,17 @@ export default function DashboardPage() {
   const [autoRetry, setAutoRetry] = useState(0);
 
   useEffect(() => {
+    // Esperar a que NextAuth resuelva el estado de sesión
     if (status === 'loading') return;
-    if (status !== 'authenticated' || !accessToken) return;
+
+    // Si no hay sesión válida o el token fue anulado por expiración,
+    // salir del estado "loading" para no mostrar skeleton infinito.
+    // AuthSync se encargará del signOut si el token expiró.
+    if (status !== 'authenticated' || !accessToken) {
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     setError(false);
     usersApi.dashboard()

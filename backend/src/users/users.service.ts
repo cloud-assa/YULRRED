@@ -2,12 +2,20 @@ import { Injectable, NotFoundException, BadRequestException, ConflictException }
 import { SpacetimeService } from '../spacetime/spacetime.service';
 import * as bcrypt from 'bcryptjs';
 
-const unwrap = (v: any) =>
-  v && typeof v === 'object' && 'some' in v
-    ? v.some
-    : v === null || (v && typeof v === 'object' && 'none' in v)
-    ? null
-    : v;
+// Recursive unwrap: SpacetimeService ya pre-procesa BSATN, pero puede quedar
+// un nivel anidado residual (e.g. {some: {I64: 123}} → {I64: 123} → 123).
+// Sin recursión, new Date({I64: 123}) produce Invalid Date.
+const unwrap = (v: any): any => {
+  if (v === null || v === undefined) return null;
+  if (typeof v !== 'object') return v;
+  if ('none' in v) return null;
+  if ('some' in v) return unwrap(v.some); // recursivo — maneja {some: {I64: 123}}
+  // BSATN scalar wrappers que SpacetimeService no haya resuelto aún
+  const bsatnKeys = ['String','Bool','I8','I16','I32','I64','U8','U16','U32','U64','F32','F64'];
+  const keys = Object.keys(v);
+  if (keys.length === 1 && bsatnKeys.includes(keys[0])) return v[keys[0]];
+  return v;
+};
 
 interface DbUser {
   id: string;
@@ -32,10 +40,12 @@ interface DbDeal {
   buyer_id: string;
   seller_id: string;
   stripe_payment_intent_id: string | null;
+  stripe_transfer_id: string | null;
   delivery_note: string | null;
   delivered_at: number | null;
   completed_at: number | null;
   refunded_at: number | null;
+  product_url: string | null; // columna añadida para Compra Gestionada
   created_at: number;
   updated_at: number;
 }
@@ -112,9 +122,10 @@ export class UsersService {
     };
 
     const completedDeals = allDeals.filter((d) => d.status === 'COMPLETED');
-    const activeDeals = allDeals.filter(
-      (d) => d.status === 'FUNDED' || d.status === 'DELIVERED',
-    );
+    // Todos los estados no terminales son "activos" — incluye PENDING, FUNDED,
+    // AWAITING_APPROVAL, DELIVERED, DISPUTED (no COMPLETED, CANCELLED, REFUNDED)
+    const terminalStatuses = new Set(['COMPLETED', 'CANCELLED', 'REFUNDED']);
+    const activeDeals = allDeals.filter((d) => !terminalStatuses.has(d.status));
 
     return {
       buyerDeals: buyerDeals.map(enrichDeal),
@@ -130,19 +141,26 @@ export class UsersService {
   }
 
   private toSafeUser(user: DbUser) {
+    const createdRaw = unwrap(user.created_at);
+    const ms = typeof createdRaw === 'string' ? Number(createdRaw) : createdRaw;
     return {
       id: user.id,
       email: user.email,
       name: user.name,
       role: user.role,
-      createdAt: new Date(user.created_at),
+      createdAt: ms ? new Date(ms) : new Date(0),
     };
   }
 
   private toDeal(deal: DbDeal) {
+    // unwrap() es ahora recursivo — garantiza que BSATN anidado ({some: {I64: x}})
+    // se resuelva a un primitivo antes de pasarlo a new Date()
     const deliveredAt = unwrap(deal.delivered_at);
     const completedAt = unwrap(deal.completed_at);
     const refundedAt = unwrap(deal.refunded_at);
+    const deadlineRaw = unwrap(deal.deadline);   // defensivo: podría venir envuelto
+    const createdRaw  = unwrap(deal.created_at);
+    const updatedRaw  = unwrap(deal.updated_at);
     return {
       id: deal.id,
       title: deal.title,
@@ -152,16 +170,17 @@ export class UsersService {
       netAmount: deal.net_amount,
       currency: deal.currency,
       status: deal.status,
-      deadline: new Date(deal.deadline),
+      deadline: new Date(typeof deadlineRaw === 'string' ? Number(deadlineRaw) : deadlineRaw),
       buyerId: deal.buyer_id,
       sellerId: deal.seller_id,
       stripePaymentIntentId: unwrap(deal.stripe_payment_intent_id),
       deliveryNote: unwrap(deal.delivery_note),
-      deliveredAt: deliveredAt ? new Date(deliveredAt) : null,
-      completedAt: completedAt ? new Date(completedAt) : null,
-      refundedAt: refundedAt ? new Date(refundedAt) : null,
-      createdAt: new Date(deal.created_at),
-      updatedAt: new Date(deal.updated_at),
+      deliveredAt: deliveredAt ? new Date(typeof deliveredAt === 'string' ? Number(deliveredAt) : deliveredAt) : null,
+      completedAt: completedAt ? new Date(typeof completedAt === 'string' ? Number(completedAt) : completedAt) : null,
+      refundedAt: refundedAt ? new Date(typeof refundedAt === 'string' ? Number(refundedAt) : refundedAt) : null,
+      productUrl: unwrap(deal.product_url) ?? null, // campo agregado para Compra Gestionada
+      createdAt: new Date(typeof createdRaw === 'string' ? Number(createdRaw) : createdRaw),
+      updatedAt: new Date(typeof updatedRaw === 'string' ? Number(updatedRaw) : updatedRaw),
     };
   }
 

@@ -11,12 +11,17 @@ import * as bcrypt from 'bcryptjs';
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const cuid: () => string = require('cuid');
 
-const unwrap = (v: any) =>
-  v && typeof v === 'object' && 'some' in v
-    ? v.some
-    : v === null || (v && typeof v === 'object' && 'none' in v)
-    ? null
-    : v;
+// Recursive — {some: {String: "hash"}} → "hash"; sin recursión bcrypt.compare falla
+const unwrap = (v: any): any => {
+  if (v === null || v === undefined) return null;
+  if (typeof v !== 'object') return v;
+  if ('none' in v) return null;
+  if ('some' in v) return unwrap(v.some);
+  const bsatnKeys = ['String','Bool','I8','I16','I32','I64','U8','U16','U32','U64','F32','F64'];
+  const keys = Object.keys(v);
+  if (keys.length === 1 && bsatnKeys.includes(keys[0])) return v[keys[0]];
+  return v;
+};
 
 interface DbUser {
   id: string;
@@ -75,12 +80,14 @@ export class AuthService {
   }
 
   private toSafeUser(user: DbUser) {
+    const createdRaw = unwrap(user.created_at);
+    const ms = typeof createdRaw === 'string' ? Number(createdRaw) : createdRaw;
     return {
       id: user.id,
       email: user.email,
       name: user.name,
       role: user.role,
-      createdAt: new Date(user.created_at),
+      createdAt: ms ? new Date(ms) : new Date(0),
     };
   }
 

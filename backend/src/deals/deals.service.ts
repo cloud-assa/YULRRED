@@ -15,12 +15,17 @@ const cuid: () => string = require('cuid');
 
 const FEE_PERCENT = parseFloat(process.env.ESCROW_FEE_PERCENT || '5') / 100;
 
-const unwrap = (v: any) =>
-  v && typeof v === 'object' && 'some' in v
-    ? v.some
-    : v === null || (v && typeof v === 'object' && 'none' in v)
-    ? null
-    : v;
+// Recursive — {some: {String: "url"}} sin recursión queda como {String: "url"}
+const unwrap = (v: any): any => {
+  if (v === null || v === undefined) return null;
+  if (typeof v !== 'object') return v;
+  if ('none' in v) return null;
+  if ('some' in v) return unwrap(v.some);
+  const bsatnKeys = ['String','Bool','I8','I16','I32','I64','U8','U16','U32','U64','F32','F64'];
+  const keys = Object.keys(v);
+  if (keys.length === 1 && bsatnKeys.includes(keys[0])) return v[keys[0]];
+  return v;
+};
 
 interface DbUser {
   id: string;
@@ -85,12 +90,25 @@ export class DealsService {
     return value.replace(/'/g, "''");
   }
 
+  // Convierte un timestamp que puede llegar como number o string a Date de forma segura
+  private tsToDate(raw: unknown): Date | null {
+    if (raw === null || raw === undefined) return null;
+    // SpacetimeDB puede serializar I64 como string en JSON para evitar pérdida de precisión
+    const ms = typeof raw === 'string' ? Number(raw) : (raw as number);
+    if (!ms || isNaN(ms)) return null;
+    return new Date(ms);
+  }
+
   private toDeal(deal: DbDeal, buyer?: DbUser | null, seller?: DbUser | null, dispute?: DbDispute | null) {
     const deliveredAt = unwrap(deal.delivered_at);
     const completedAt = unwrap(deal.completed_at);
     const refundedAt = unwrap(deal.refunded_at);
     const deliveryNote = unwrap(deal.delivery_note);
     const stripePaymentIntentId = unwrap(deal.stripe_payment_intent_id);
+    // unwrap aplicado a timestamps para manejar {some: {I64: "1700000000000"}} → Date válida
+    const deadlineRaw = unwrap(deal.deadline);
+    const createdRaw  = unwrap(deal.created_at);
+    const updatedRaw  = unwrap(deal.updated_at);
 
     const result: Record<string, unknown> = {
       id: deal.id,
@@ -101,17 +119,17 @@ export class DealsService {
       netAmount: deal.net_amount,
       currency: deal.currency,
       status: deal.status,
-      deadline: new Date(deal.deadline),
+      deadline: this.tsToDate(deadlineRaw) ?? new Date(0),
       buyerId: deal.buyer_id,
       sellerId: deal.seller_id,
       stripePaymentIntentId,
       deliveryNote,
-      deliveredAt: deliveredAt ? new Date(deliveredAt) : null,
-      completedAt: completedAt ? new Date(completedAt) : null,
-      refundedAt: refundedAt ? new Date(refundedAt) : null,
-      productUrl: unwrap(deal.product_url), // URL del producto para Compra Gestionada
-      createdAt: new Date(deal.created_at),
-      updatedAt: new Date(deal.updated_at),
+      deliveredAt: this.tsToDate(deliveredAt),
+      completedAt: this.tsToDate(completedAt),
+      refundedAt: this.tsToDate(refundedAt),
+      productUrl: unwrap(deal.product_url) ?? null, // URL del producto para Compra Gestionada
+      createdAt: this.tsToDate(createdRaw) ?? new Date(0),
+      updatedAt: this.tsToDate(updatedRaw) ?? new Date(0),
     };
     if (buyer !== undefined) {
       result.buyer = buyer ? { id: buyer.id, name: buyer.name, email: buyer.email } : null;
@@ -217,39 +235,37 @@ export class DealsService {
   }
 
   async findAll(userId: string) {
-    try {
-      const escapedId = this.esc(userId);
-      const deals = (
-        await this.spacetime.sql<DbDeal>(
-          `SELECT * FROM deal WHERE buyer_id = '${escapedId}' OR seller_id = '${escapedId}'`,
-        )
-      ).sort((a, b) => b.created_at - a.created_at);
+    // Sin catch silencioso — los errores deben propagarse para que el frontend
+    // muestre un estado de error con opción de reintento, en lugar de lista vacía
+    const escapedId = this.esc(userId);
+    const deals = (
+      await this.spacetime.sql<DbDeal>(
+        `SELECT * FROM deal WHERE buyer_id = '${escapedId}' OR seller_id = '${escapedId}'`,
+      )
+    ).sort((a, b) => b.created_at - a.created_at);
 
-      const involvedIds = [...new Set([
-        ...deals.map((d) => d.buyer_id),
-        ...deals.map((d) => d.seller_id),
-      ])];
-      let userMap = new Map<string, DbUser>();
-      if (involvedIds.length > 0) {
-        const idConditions = involvedIds.map((id) => `id = '${this.esc(id)}'`).join(' OR ');
-        const users = await this.spacetime.sql<DbUser>(`SELECT * FROM user WHERE ${idConditions}`);
-        userMap = new Map(users.map((u) => [u.id, u]));
-      }
-
-      return Promise.all(
-        deals.map(async (deal) => {
-          const dispute = await this.getDisputeByDealId(deal.id);
-          return this.toDeal(
-            deal,
-            userMap.get(deal.buyer_id) ?? null,
-            userMap.get(deal.seller_id) ?? null,
-            dispute,
-          );
-        }),
-      );
-    } catch {
-      return [];
+    const involvedIds = [...new Set([
+      ...deals.map((d) => d.buyer_id),
+      ...deals.map((d) => d.seller_id),
+    ])];
+    let userMap = new Map<string, DbUser>();
+    if (involvedIds.length > 0) {
+      const idConditions = involvedIds.map((id) => `id = '${this.esc(id)}'`).join(' OR ');
+      const users = await this.spacetime.sql<DbUser>(`SELECT * FROM user WHERE ${idConditions}`);
+      userMap = new Map(users.map((u) => [u.id, u]));
     }
+
+    return Promise.all(
+      deals.map(async (deal) => {
+        const dispute = await this.getDisputeByDealId(deal.id);
+        return this.toDeal(
+          deal,
+          userMap.get(deal.buyer_id) ?? null,
+          userMap.get(deal.seller_id) ?? null,
+          dispute,
+        );
+      }),
+    );
   }
 
   async findOne(id: string, userId: string) {

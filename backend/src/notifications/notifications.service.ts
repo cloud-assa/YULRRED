@@ -3,12 +3,17 @@ import { SpacetimeService } from '../spacetime/spacetime.service';
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const cuid: () => string = require('cuid');
 
-const unwrap = (v: any) =>
-  v && typeof v === 'object' && 'some' in v
-    ? v.some
-    : v === null || (v && typeof v === 'object' && 'none' in v)
-    ? null
-    : v;
+// Recursive — necesario porque SpacetimeDB puede devolver {some: {String: "id"}}
+const unwrap = (v: any): any => {
+  if (v === null || v === undefined) return null;
+  if (typeof v !== 'object') return v;
+  if ('none' in v) return null;
+  if ('some' in v) return unwrap(v.some);
+  const bsatnKeys = ['String','Bool','I8','I16','I32','I64','U8','U16','U32','U64','F32','F64'];
+  const keys = Object.keys(v);
+  if (keys.length === 1 && bsatnKeys.includes(keys[0])) return v[keys[0]];
+  return v;
+};
 
 interface DbNotification {
   id: string;

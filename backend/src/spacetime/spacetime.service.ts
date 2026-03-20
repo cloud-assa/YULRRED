@@ -32,7 +32,9 @@ export class SpacetimeService {
     this.client = axios.create({
       baseURL: baseUrl,
       headers: { 'Authorization': `Bearer ${token}` },
-      timeout: 8000,
+      // 20s: el dashboard ejecuta 3 queries encadenadas; 8s no alcanza cuando SpacetimeDB
+      // está bajo carga o tiene cold-start, causando que usuarios con más datos reciban error
+      timeout: 20000,
     });
   }
 
