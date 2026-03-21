@@ -110,20 +110,32 @@ export class UsersService {
       };
     };
 
-    const completedDeals = allDeals.filter((d) => d.status === 'COMPLETED');
-    // Fix: lista explícita de activos; el filtro de exclusión fallaba con valores inesperados de Supabase
-    const ACTIVE_STATUSES = ['PENDING', 'FUNDED', 'DELIVERED', 'AWAITING_APPROVAL', 'DISPUTED'];
-    const activeDeals = allDeals.filter((d) => ACTIVE_STATUSES.includes(String(d.status)));
+    // Fix definitivo: usar SQL directo para stats — evita problemas de filtrado JS
+    // en el ambiente serverless de Supabase/Vercel donde el estado puede llevar
+    // formato inesperado (enum cast, lazy evaluation, etc.)
+    const [statsResult] = await Promise.all([
+      this.db.query<{total_volume: string; buyer_count: string; seller_count: string; active_count: string}>(
+        `SELECT
+          COALESCE(SUM(CASE WHEN status = 'COMPLETED' THEN amount ELSE 0 END), 0) AS total_volume,
+          COUNT(CASE WHEN buyer_id = $1 THEN 1 END) AS buyer_count,
+          COUNT(CASE WHEN seller_id = $1 THEN 1 END) AS seller_count,
+          COUNT(CASE WHEN status NOT IN ('COMPLETED', 'CANCELLED', 'REFUNDED') THEN 1 END) AS active_count
+        FROM deal
+        WHERE buyer_id = $1 OR seller_id = $1`,
+        [userId],
+      ),
+    ]);
+    const statsRow = statsResult[0] || { total_volume: '0', buyer_count: '0', seller_count: '0', active_count: '0' };
 
     return {
       buyerDeals: buyerDeals.map(enrichDeal),
       sellerDeals: sellerDeals.map(enrichDeal),
       notifications: notifications.map(this.toNotification),
       stats: {
-        totalVolume: completedDeals.reduce((sum, d) => sum + (d.amount || 0), 0),
-        buyerDealsCount: allDeals.filter((d) => d.buyer_id === userId).length,
-        sellerDealsCount: allDeals.filter((d) => d.seller_id === userId).length,
-        activeDeals: activeDeals.length,
+        totalVolume: parseFloat(statsRow.total_volume) || 0,
+        buyerDealsCount: parseInt(statsRow.buyer_count, 10) || 0,
+        sellerDealsCount: parseInt(statsRow.seller_count, 10) || 0,
+        activeDeals: parseInt(statsRow.active_count, 10) || 0,
       },
     };
   }
