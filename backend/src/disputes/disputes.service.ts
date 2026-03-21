@@ -174,10 +174,31 @@ export class DisputesService {
     const disputes = await this.db.query<DbDispute>(
       `SELECT * FROM dispute ORDER BY created_at DESC`,
     );
-    const allDeals = await this.db.query<DbDeal>(`SELECT * FROM deal`);
-    const allUsers = await this.db.query<DbUser>(`SELECT * FROM "user"`);
-    const dealMap = new Map(allDeals.map((d) => [d.id, d]));
-    const userMap = new Map(allUsers.map((u) => [u.id, u]));
+
+    // Batch-fetch solo deals y usuarios involucrados — evita SELECT * sobre toda la BD
+    const dealIds = [...new Set(disputes.map((d) => d.deal_id))];
+    let dealMap = new Map<string, DbDeal>();
+    if (dealIds.length > 0) {
+      const deals = await this.db.query<DbDeal>(
+        `SELECT * FROM deal WHERE id = ANY($1)`,
+        [dealIds],
+      );
+      dealMap = new Map(deals.map((d) => [d.id, d]));
+    }
+
+    const userIds = [...new Set([
+      ...disputes.map((d) => d.raised_by_id),
+      ...[...dealMap.values()].map((d) => d.buyer_id),
+      ...[...dealMap.values()].map((d) => d.seller_id),
+    ])];
+    let userMap = new Map<string, DbUser>();
+    if (userIds.length > 0) {
+      const users = await this.db.query<DbUser>(
+        `SELECT * FROM "user" WHERE id = ANY($1)`,
+        [userIds],
+      );
+      userMap = new Map(users.map((u) => [u.id, u]));
+    }
 
     return disputes.map((d) => {
       const deal = dealMap.get(d.deal_id);

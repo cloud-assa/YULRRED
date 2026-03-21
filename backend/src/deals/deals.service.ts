@@ -164,7 +164,7 @@ export class DealsService {
     await this.db.execute(
       `INSERT INTO deal (id, title, description, amount, fee_amount, net_amount, currency, status, deadline, buyer_id, seller_id, product_url, created_at, updated_at)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
-      [id, dto.title, dto.description, dto.amount, feeAmount, netAmount, 'pen', DealStatus.PENDING, deadline, buyerId, seller.id, dto.productUrl ?? null, now, now],
+      [id, dto.title, dto.description, dto.amount, feeAmount, netAmount, 'PEN', DealStatus.PENDING, deadline, buyerId, seller.id, dto.productUrl ?? null, now, now],
     );
 
     const buyer = await this.getUserById(buyerId);
@@ -173,7 +173,7 @@ export class DealsService {
     const dealShape: DbDeal = {
       id, title: dto.title, description: dto.description,
       amount: dto.amount, fee_amount: feeAmount, net_amount: netAmount,
-      currency: 'pen', status: DealStatus.PENDING, deadline: String(deadline),
+      currency: 'PEN', status: DealStatus.PENDING, deadline: String(deadline),
       buyer_id: buyerId, seller_id: seller.id,
       stripe_payment_intent_id: null, stripe_transfer_id: null,
       delivery_note: null, delivered_at: null, completed_at: null, refunded_at: null,
