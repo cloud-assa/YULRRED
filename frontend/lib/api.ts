@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { getSession } from 'next-auth/react';
+import { getSession, signOut } from 'next-auth/react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -24,6 +24,11 @@ api.interceptors.request.use(async (config) => {
 api.interceptors.response.use(
   (res) => res,
   (err) => {
+    // 401: token expirado o inválido — forzar logout para evitar errores en bucle
+    if (err.response?.status === 401) {
+      setAuthToken(null);
+      signOut({ callbackUrl: '/login' }).catch(() => {});
+    }
     const message = err.response?.data?.message || err.message || 'An error occurred';
     return Promise.reject(new Error(Array.isArray(message) ? message.join(', ') : message));
   },

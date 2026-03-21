@@ -85,7 +85,8 @@ function ResolveModal({ dispute, onResolved, onClose }: { dispute: any; onResolv
 const FILTER_LABELS: Record<string, string> = { ALL: 'Todos', OPEN: 'Abierta', UNDER_REVIEW: 'En Revisión', RESOLVED_BUYER: 'Ganó Comprador', RESOLVED_SELLER: 'Ganó Vendedor' };
 
 export default function AdminDisputesPage() {
-  const { status } = useSession();
+  const { data: session, status } = useSession();
+  const accessToken = (session as any)?.accessToken as string | null | undefined;
   const [disputes, setDisputes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<any>(null);
@@ -93,9 +94,10 @@ export default function AdminDisputesPage() {
 
   const load = () => disputesApi.list().then(setDisputes).catch(() => toast.error('Error al cargar')).finally(() => setLoading(false));
   useEffect(() => {
-    if (status !== 'authenticated') return;
+    // accessToken guard: evita 401 cuando el token de sesión aún no se ha cargado
+    if (status !== 'authenticated' || !accessToken) return;
     load();
-  }, [status]);
+  }, [status, accessToken]);
 
   const markUnderReview = async (id: string) => {
     try { await disputesApi.markReview(id); toast.success('Marcada en revisión'); load(); }

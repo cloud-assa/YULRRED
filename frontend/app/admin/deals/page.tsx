@@ -17,15 +17,17 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 export default function AdminDealsPage() {
-  const { status } = useSession();
+  const { data: session, status } = useSession();
+  const accessToken = (session as any)?.accessToken as string | null | undefined;
   const [deals, setDeals] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('ALL');
 
   useEffect(() => {
-    if (status !== 'authenticated') return;
+    // accessToken guard: evita llamada sin token cuando sesión está caducada
+    if (status !== 'authenticated' || !accessToken) return;
     dealsApi.allAdmin().then(setDeals).catch(() => toast.error('Error al cargar')).finally(() => setLoading(false));
-  }, [status]);
+  }, [status, accessToken]);
 
   const statuses = ['ALL', 'PENDING', 'FUNDED', 'DELIVERED', 'COMPLETED', 'DISPUTED', 'CANCELLED', 'REFUNDED'];
   const filtered = filter === 'ALL' ? deals : deals.filter((d) => d.status === filter);

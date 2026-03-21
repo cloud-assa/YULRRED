@@ -111,8 +111,9 @@ export class UsersService {
     };
 
     const completedDeals = allDeals.filter((d) => d.status === 'COMPLETED');
-    const terminalStatuses = new Set(['COMPLETED', 'CANCELLED', 'REFUNDED']);
-    const activeDeals = allDeals.filter((d) => !terminalStatuses.has(d.status));
+    // Fix: lista explícita de activos; el filtro de exclusión fallaba con valores inesperados de Supabase
+    const ACTIVE_STATUSES = ['PENDING', 'FUNDED', 'DELIVERED', 'AWAITING_APPROVAL', 'DISPUTED'];
+    const activeDeals = allDeals.filter((d) => ACTIVE_STATUSES.includes(String(d.status)));
 
     return {
       buyerDeals: buyerDeals.map(enrichDeal),

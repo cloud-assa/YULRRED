@@ -195,7 +195,8 @@ function DeleteModal({
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function AdminUsersPage() {
-  const { status } = useSession();
+  const { data: session, status } = useSession();
+  const accessToken = (session as any)?.accessToken as string | null | undefined;
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [editUser, setEditUser] = useState<any | null>(null);
@@ -210,9 +211,10 @@ export default function AdminUsersPage() {
   };
 
   useEffect(() => {
-    if (status !== 'authenticated') return;
+    // accessToken guard: previene la llamada sin token cuando la sesión está caducada
+    if (status !== 'authenticated' || !accessToken) return;
     loadUsers();
-  }, [status]);
+  }, [status, accessToken]);
 
   return (
     <div className="max-w-5xl mx-auto space-y-5">
