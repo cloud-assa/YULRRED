@@ -1,21 +1,6 @@
 import { Injectable, NotFoundException, BadRequestException, ConflictException } from '@nestjs/common';
-import { SpacetimeService } from '../spacetime/spacetime.service';
+import { SupabaseService } from '../supabase/supabase.service';
 import * as bcrypt from 'bcryptjs';
-
-// Recursive unwrap: SpacetimeService ya pre-procesa BSATN, pero puede quedar
-// un nivel anidado residual (e.g. {some: {I64: 123}} → {I64: 123} → 123).
-// Sin recursión, new Date({I64: 123}) produce Invalid Date.
-const unwrap = (v: any): any => {
-  if (v === null || v === undefined) return null;
-  if (typeof v !== 'object') return v;
-  if ('none' in v) return null;
-  if ('some' in v) return unwrap(v.some); // recursivo — maneja {some: {I64: 123}}
-  // BSATN scalar wrappers que SpacetimeService no haya resuelto aún
-  const bsatnKeys = ['String','Bool','I8','I16','I32','I64','U8','U16','U32','U64','F32','F64'];
-  const keys = Object.keys(v);
-  if (keys.length === 1 && bsatnKeys.includes(keys[0])) return v[keys[0]];
-  return v;
-};
 
 interface DbUser {
   id: string;
@@ -23,8 +8,8 @@ interface DbUser {
   name: string;
   password: string;
   role: string;
-  created_at: number;
-  updated_at: number;
+  created_at: string;
+  updated_at: string;
 }
 
 interface DbDeal {
@@ -36,18 +21,18 @@ interface DbDeal {
   net_amount: number;
   currency: string;
   status: string;
-  deadline: number;
+  deadline: string;
   buyer_id: string;
   seller_id: string;
   stripe_payment_intent_id: string | null;
   stripe_transfer_id: string | null;
   delivery_note: string | null;
-  delivered_at: number | null;
-  completed_at: number | null;
-  refunded_at: number | null;
-  product_url: string | null; // columna añadida para Compra Gestionada
-  created_at: number;
-  updated_at: number;
+  delivered_at: string | null;
+  completed_at: string | null;
+  refunded_at: string | null;
+  product_url: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 interface DbNotification {
@@ -58,55 +43,59 @@ interface DbNotification {
   title: string;
   message: string;
   read: boolean;
-  created_at: number;
+  created_at: string;
 }
 
 @Injectable()
 export class UsersService {
-  constructor(private spacetime: SpacetimeService) {}
+  constructor(private db: SupabaseService) {}
 
   async findAll() {
-    const allUsers = await this.spacetime.sql<DbUser>('SELECT * FROM user');
-    const users = allUsers.sort((a, b) => b.created_at - a.created_at);
+    const users = await this.db.query<DbUser>(
+      `SELECT * FROM "user" ORDER BY created_at DESC`,
+    );
     return users.map(this.toSafeUser);
   }
 
   async findOne(id: string) {
-    const user = await this.spacetime.sqlOne<DbUser>(
-      `SELECT * FROM user WHERE id = '${id}'`,
+    const user = await this.db.queryOne<DbUser>(
+      `SELECT * FROM "user" WHERE id = $1`,
+      [id],
     );
     if (!user) return null;
     return this.toSafeUser(user);
   }
 
   async getDashboardStats(userId: string) {
-    const esc = userId.replace(/'/g, "''");
     const [fetchedDeals, fetchedNotifications] = await Promise.all([
-      this.spacetime.sql<DbDeal>(
-        `SELECT * FROM deal WHERE buyer_id = '${esc}' OR seller_id = '${esc}'`,
+      this.db.query<DbDeal>(
+        `SELECT * FROM deal WHERE buyer_id = $1 OR seller_id = $1`,
+        [userId],
       ),
-      this.spacetime.sql<DbNotification>(
-        `SELECT * FROM notification WHERE user_id = '${esc}'`,
+      this.db.query<DbNotification>(
+        `SELECT * FROM notification WHERE user_id = $1`,
+        [userId],
       ),
     ]);
-    const allDeals = fetchedDeals.sort((a, b) => b.created_at - a.created_at);
+    const allDeals = fetchedDeals.sort((a, b) => Number(b.created_at) - Number(a.created_at));
     const notifications = fetchedNotifications
       .filter((n) => !n.read)
-      .sort((a, b) => b.created_at - a.created_at)
+      .sort((a, b) => Number(b.created_at) - Number(a.created_at))
       .slice(0, 10);
 
     const buyerDeals = allDeals.filter((d) => d.buyer_id === userId).slice(0, 5);
     const sellerDeals = allDeals.filter((d) => d.seller_id === userId).slice(0, 5);
 
+    // Batch-fetch all involved users with ANY($1) instead of N OR conditions
     const involvedIds = [...new Set([
       ...allDeals.map((d) => d.buyer_id),
       ...allDeals.map((d) => d.seller_id),
     ])];
     let userMap = new Map<string, DbUser>();
     if (involvedIds.length > 0) {
-      const idConditions = involvedIds.map((id) => `id = '${id.replace(/'/g, "''")}'`).join(' OR ');
-      const involvedUsers = await this.spacetime.sql<DbUser>(
-        `SELECT * FROM user WHERE ${idConditions}`,
+      const involvedUsers = await this.db.query<DbUser>(
+        `SELECT * FROM "user" WHERE id = ANY($1)`,
+        [involvedIds],
       );
       userMap = new Map(involvedUsers.map((u) => [u.id, u]));
     }
@@ -122,8 +111,6 @@ export class UsersService {
     };
 
     const completedDeals = allDeals.filter((d) => d.status === 'COMPLETED');
-    // Todos los estados no terminales son "activos" — incluye PENDING, FUNDED,
-    // AWAITING_APPROVAL, DELIVERED, DISPUTED (no COMPLETED, CANCELLED, REFUNDED)
     const terminalStatuses = new Set(['COMPLETED', 'CANCELLED', 'REFUNDED']);
     const activeDeals = allDeals.filter((d) => !terminalStatuses.has(d.status));
 
@@ -141,8 +128,7 @@ export class UsersService {
   }
 
   private toSafeUser(user: DbUser) {
-    const createdRaw = unwrap(user.created_at);
-    const ms = typeof createdRaw === 'string' ? Number(createdRaw) : createdRaw;
+    const ms = Number(user.created_at);
     return {
       id: user.id,
       email: user.email,
@@ -153,14 +139,6 @@ export class UsersService {
   }
 
   private toDeal(deal: DbDeal) {
-    // unwrap() es ahora recursivo — garantiza que BSATN anidado ({some: {I64: x}})
-    // se resuelva a un primitivo antes de pasarlo a new Date()
-    const deliveredAt = unwrap(deal.delivered_at);
-    const completedAt = unwrap(deal.completed_at);
-    const refundedAt = unwrap(deal.refunded_at);
-    const deadlineRaw = unwrap(deal.deadline);   // defensivo: podría venir envuelto
-    const createdRaw  = unwrap(deal.created_at);
-    const updatedRaw  = unwrap(deal.updated_at);
     return {
       id: deal.id,
       title: deal.title,
@@ -170,17 +148,17 @@ export class UsersService {
       netAmount: deal.net_amount,
       currency: deal.currency,
       status: deal.status,
-      deadline: new Date(typeof deadlineRaw === 'string' ? Number(deadlineRaw) : deadlineRaw),
+      deadline: this.tsToDate(deal.deadline) ?? new Date(0),
       buyerId: deal.buyer_id,
       sellerId: deal.seller_id,
-      stripePaymentIntentId: unwrap(deal.stripe_payment_intent_id),
-      deliveryNote: unwrap(deal.delivery_note),
-      deliveredAt: deliveredAt ? new Date(typeof deliveredAt === 'string' ? Number(deliveredAt) : deliveredAt) : null,
-      completedAt: completedAt ? new Date(typeof completedAt === 'string' ? Number(completedAt) : completedAt) : null,
-      refundedAt: refundedAt ? new Date(typeof refundedAt === 'string' ? Number(refundedAt) : refundedAt) : null,
-      productUrl: unwrap(deal.product_url) ?? null, // campo agregado para Compra Gestionada
-      createdAt: new Date(typeof createdRaw === 'string' ? Number(createdRaw) : createdRaw),
-      updatedAt: new Date(typeof updatedRaw === 'string' ? Number(updatedRaw) : updatedRaw),
+      stripePaymentIntentId: deal.stripe_payment_intent_id,
+      deliveryNote: deal.delivery_note,
+      deliveredAt: this.tsToDate(deal.delivered_at),
+      completedAt: this.tsToDate(deal.completed_at),
+      refundedAt: this.tsToDate(deal.refunded_at),
+      productUrl: deal.product_url,
+      createdAt: this.tsToDate(deal.created_at) ?? new Date(0),
+      updatedAt: this.tsToDate(deal.updated_at) ?? new Date(0),
     };
   }
 
@@ -188,25 +166,33 @@ export class UsersService {
     return {
       id: n.id,
       userId: n.user_id,
-      dealId: unwrap(n.deal_id),
+      dealId: n.deal_id,
       type: n.type,
       title: n.title,
       message: n.message,
       read: n.read,
-      createdAt: new Date(n.created_at),
+      createdAt: new Date(Number(n.created_at)),
     };
   }
 
-  // Elimina un usuario — solo si no tiene deals activos
+  // pg returns BIGINT as string — convert to Date safely
+  private tsToDate(raw: string | null): Date | null {
+    if (raw === null || raw === undefined) return null;
+    const ms = Number(raw);
+    if (!ms || isNaN(ms)) return null;
+    return new Date(ms);
+  }
+
   async deleteUser(id: string) {
-    const user = await this.spacetime.sqlOne<DbUser>(
-      `SELECT * FROM user WHERE id = '${id.replace(/'/g, "''")}'`,
+    const user = await this.db.queryOne<DbUser>(
+      `SELECT * FROM "user" WHERE id = $1`,
+      [id],
     );
     if (!user) throw new NotFoundException('User not found');
 
-    // Verificar deals activos: consulta todas las columnas para filtrar por status client-side
-    const deals = await this.spacetime.sql<{ id: string; status: string }>(
-      `SELECT id, status FROM deal WHERE buyer_id = '${id.replace(/'/g, "''")}' OR seller_id = '${id.replace(/'/g, "''")}'`,
+    const deals = await this.db.query<{ id: string; status: string }>(
+      `SELECT id, status FROM deal WHERE buyer_id = $1 OR seller_id = $1`,
+      [id],
     );
     const activeStatuses = ['PENDING', 'FUNDED', 'DELIVERED', 'AWAITING_APPROVAL', 'DISPUTED'];
     const activeDeals = deals.filter((d) => activeStatuses.includes(d.status));
@@ -216,33 +202,35 @@ export class UsersService {
       );
     }
 
-    await this.spacetime.call('delete_user', [id]);
+    await this.db.execute(`DELETE FROM "user" WHERE id = $1`, [id]);
     return { deleted: true, id };
   }
 
-  // Actualiza nombre, email y/o contraseña — solo desde panel de admin
   async updateCredentials(id: string, dto: { name?: string; email?: string; password?: string }) {
-    const user = await this.spacetime.sqlOne<DbUser>(
-      `SELECT * FROM user WHERE id = '${id.replace(/'/g, "''")}'`,
+    const user = await this.db.queryOne<DbUser>(
+      `SELECT * FROM "user" WHERE id = $1`,
+      [id],
     );
     if (!user) throw new NotFoundException('User not found');
 
-    // Verificar que el nuevo email no esté en uso por otro usuario
     if (dto.email && dto.email !== user.email) {
-      const existing = await this.spacetime.sqlOne<DbUser>(
-        `SELECT * FROM user WHERE email = '${dto.email.replace(/'/g, "''")}'`,
+      const existing = await this.db.queryOne<DbUser>(
+        `SELECT * FROM "user" WHERE email = $1`,
+        [dto.email],
       );
       if (existing) throw new ConflictException('El email ya está en uso por otro usuario');
     }
 
     const newName = dto.name ?? user.name;
     const newEmail = dto.email ?? user.email;
-    // Si se provee nueva contraseña, hashearla; sino usar la existente
     const newPassword = dto.password
       ? await bcrypt.hash(dto.password, 10)
-      : (unwrap(user.password) as string) ?? user.password;
+      : user.password;
 
-    await this.spacetime.call('update_user_credentials', [id, newName, newEmail, newPassword]);
+    await this.db.execute(
+      `UPDATE "user" SET name = $1, email = $2, password = $3, updated_at = $4 WHERE id = $5`,
+      [newName, newEmail, newPassword, Date.now(), id],
+    );
     return { id, name: newName, email: newEmail, role: user.role };
   }
 }

@@ -4,24 +4,12 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { SpacetimeService } from '../spacetime/spacetime.service';
+import { SupabaseService } from '../supabase/supabase.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import * as bcrypt from 'bcryptjs';
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const cuid: () => string = require('cuid');
-
-// Recursive — {some: {String: "hash"}} → "hash"; sin recursión bcrypt.compare falla
-const unwrap = (v: any): any => {
-  if (v === null || v === undefined) return null;
-  if (typeof v !== 'object') return v;
-  if ('none' in v) return null;
-  if ('some' in v) return unwrap(v.some);
-  const bsatnKeys = ['String','Bool','I8','I16','I32','I64','U8','U16','U32','U64','F32','F64'];
-  const keys = Object.keys(v);
-  if (keys.length === 1 && bsatnKeys.includes(keys[0])) return v[keys[0]];
-  return v;
-};
 
 interface DbUser {
   id: string;
@@ -29,41 +17,48 @@ interface DbUser {
   name: string;
   password: string;
   role: string;
-  created_at: number;
-  updated_at: number;
+  created_at: string; // pg returns BIGINT as string
+  updated_at: string;
 }
 
 @Injectable()
 export class AuthService {
   constructor(
-    private spacetime: SpacetimeService,
+    private db: SupabaseService,
     private jwtService: JwtService,
   ) {}
 
   async register(dto: RegisterDto) {
-    const exists = await this.spacetime.sqlOne<DbUser>(
-      `SELECT * FROM user WHERE email = '${dto.email.replace(/'/g, "''")}'`,
+    const exists = await this.db.queryOne<DbUser>(
+      `SELECT * FROM "user" WHERE email = $1`,
+      [dto.email],
     );
     if (exists) throw new ConflictException('Email already registered');
 
     const hashed = await bcrypt.hash(dto.password, 10);
     const id = cuid();
+    const now = Date.now();
 
-    await this.spacetime.call('create_user', [id, dto.email, dto.name, hashed, 'USER']);
+    await this.db.execute(
+      `INSERT INTO "user" (id, email, name, password, role, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      [id, dto.email, dto.name, hashed, 'USER', now, now],
+    );
 
-    // Build response directly — avoid read-after-write race with SpacetimeDB
     const safeUser = { id, email: dto.email, name: dto.name, role: 'USER', createdAt: new Date() };
     const token = this.sign(id, dto.email, 'USER');
     return { user: safeUser, token };
   }
 
   async login(dto: LoginDto) {
-    const user = await this.spacetime.sqlOne<DbUser>(
-      `SELECT * FROM user WHERE email = '${dto.email.replace(/'/g, "''")}'`,
+    const user = await this.db.queryOne<DbUser>(
+      `SELECT * FROM "user" WHERE email = $1`,
+      [dto.email],
     );
     if (!user) throw new UnauthorizedException('Invalid credentials');
 
-    const valid = await bcrypt.compare(dto.password, unwrap(user.password));
+    // pg returns password as plain string — no BSATN unwrapping needed
+    const valid = await bcrypt.compare(dto.password, user.password);
     if (!valid) throw new UnauthorizedException('Invalid credentials');
 
     const safeUser = this.toSafeUser(user);
@@ -72,16 +67,17 @@ export class AuthService {
   }
 
   async me(userId: string) {
-    const user = await this.spacetime.sqlOne<DbUser>(
-      `SELECT * FROM user WHERE id = '${userId}'`,
+    const user = await this.db.queryOne<DbUser>(
+      `SELECT * FROM "user" WHERE id = $1`,
+      [userId],
     );
     if (!user) return null;
     return this.toSafeUser(user);
   }
 
   private toSafeUser(user: DbUser) {
-    const createdRaw = unwrap(user.created_at);
-    const ms = typeof createdRaw === 'string' ? Number(createdRaw) : createdRaw;
+    // pg returns BIGINT as string — convert to number for Date
+    const ms = Number(user.created_at);
     return {
       id: user.id,
       email: user.email,

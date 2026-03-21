@@ -5,21 +5,9 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import Stripe from 'stripe';
-import { SpacetimeService } from '../spacetime/spacetime.service';
+import { SupabaseService } from '../supabase/supabase.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { DealStatus } from '../common/enums';
-
-// Recursive — sin recursión {some: {String: "pi_xxx"}} queda sin resolver
-const unwrap = (v: any): any => {
-  if (v === null || v === undefined) return null;
-  if (typeof v !== 'object') return v;
-  if ('none' in v) return null;
-  if ('some' in v) return unwrap(v.some);
-  const bsatnKeys = ['String','Bool','I8','I16','I32','I64','U8','U16','U32','U64','F32','F64'];
-  const keys = Object.keys(v);
-  if (keys.length === 1 && bsatnKeys.includes(keys[0])) return v[keys[0]];
-  return v;
-};
 
 interface DbDeal {
   id: string;
@@ -30,17 +18,17 @@ interface DbDeal {
   net_amount: number;
   currency: string;
   status: string;
-  deadline: number;
+  deadline: string;
   buyer_id: string;
   seller_id: string;
   stripe_payment_intent_id: string | null;
   stripe_transfer_id: string | null;
   delivery_note: string | null;
-  delivered_at: number | null;
-  completed_at: number | null;
-  refunded_at: number | null;
-  created_at: number;
-  updated_at: number;
+  delivered_at: string | null;
+  completed_at: string | null;
+  refunded_at: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 interface DbUser {
@@ -49,8 +37,8 @@ interface DbUser {
   name: string;
   password: string;
   role: string;
-  created_at: number;
-  updated_at: number;
+  created_at: string;
+  updated_at: string;
 }
 
 @Injectable()
@@ -58,7 +46,7 @@ export class PaymentsService {
   private stripe: Stripe;
 
   constructor(
-    private spacetime: SpacetimeService,
+    private db: SupabaseService,
     private config: ConfigService,
     private notifications: NotificationsService,
   ) {
@@ -67,22 +55,18 @@ export class PaymentsService {
     });
   }
 
-  private esc(v: string) {
-    return v.replace(/'/g, "''");
-  }
-
   private async getDealById(id: string): Promise<DbDeal | null> {
-    return this.spacetime.sqlOne<DbDeal>(`SELECT * FROM deal WHERE id = '${this.esc(id)}'`);
+    return this.db.queryOne<DbDeal>(`SELECT * FROM deal WHERE id = $1`, [id]);
   }
 
   private async getUserById(id: string): Promise<DbUser | null> {
-    return this.spacetime.sqlOne<DbUser>(`SELECT * FROM user WHERE id = '${this.esc(id)}'`);
+    return this.db.queryOne<DbUser>(`SELECT * FROM "user" WHERE id = $1`, [id]);
   }
 
-  // String numérico coercion: SpacetimeDB puede serializar I64 como string en JSON
-  private ts(raw: unknown): Date {
+  // pg returns BIGINT as string — convert to Date safely
+  private ts(raw: string | null): Date {
     if (raw === null || raw === undefined) return new Date(0);
-    const ms = typeof raw === 'string' ? Number(raw) : (raw as number);
+    const ms = Number(raw);
     return isNaN(ms) ? new Date(0) : new Date(ms);
   }
 
@@ -97,16 +81,12 @@ export class PaymentsService {
       status: deal.status,
       buyerId: deal.buyer_id,
       sellerId: deal.seller_id,
-      stripePaymentIntentId: unwrap(deal.stripe_payment_intent_id),
-      deadline: this.ts(unwrap(deal.deadline)),
-      createdAt: this.ts(unwrap(deal.created_at)),
+      stripePaymentIntentId: deal.stripe_payment_intent_id,
+      deadline: this.ts(deal.deadline),
+      createdAt: this.ts(deal.created_at),
     };
   }
 
-  /**
-   * Creates a Stripe PaymentIntent for the deal amount.
-   * Funds are captured but held — not yet transferred to seller.
-   */
   async createPaymentIntent(dealId: string, buyerId: string) {
     const deal = await this.getDealById(dealId);
     if (!deal) throw new NotFoundException('Deal not found');
@@ -129,7 +109,10 @@ export class PaymentsService {
       description: `SecureDeal: ${deal.title}`,
     });
 
-    await this.spacetime.call('update_deal_stripe_intent', [dealId, paymentIntent.id]);
+    await this.db.execute(
+      `UPDATE deal SET stripe_payment_intent_id = $1, updated_at = $2 WHERE id = $3`,
+      [paymentIntent.id, Date.now(), dealId],
+    );
 
     return {
       clientSecret: paymentIntent.client_secret,
@@ -141,15 +124,14 @@ export class PaymentsService {
     };
   }
 
-  /**
-   * Called after successful Stripe payment confirmation (webhook or manual confirm).
-   * Moves deal status from PENDING → FUNDED.
-   */
   async confirmFunding(dealId: string) {
     const deal = await this.getDealById(dealId);
     if (!deal) throw new NotFoundException('Deal not found');
 
-    await this.spacetime.call('update_deal_status', [dealId, DealStatus.FUNDED]);
+    await this.db.execute(
+      `UPDATE deal SET status = $1, updated_at = $2 WHERE id = $3`,
+      [DealStatus.FUNDED, Date.now(), dealId],
+    );
 
     await Promise.all([
       this.notifications.create(deal.buyer_id, dealId, 'DEAL_FUNDED', 'Deal Funded!', `Your payment of S/ ${deal.amount} for "${deal.title}" has been received and held securely.`),
@@ -161,9 +143,6 @@ export class PaymentsService {
     return this.toDealShape(updated);
   }
 
-  /**
-   * Handle Stripe webhook events.
-   */
   async handleWebhook(payload: Buffer, signature: string) {
     const webhookSecret = this.config.get('STRIPE_WEBHOOK_SECRET');
     let event: Stripe.Event;
@@ -205,9 +184,6 @@ export class PaymentsService {
     return { received: true };
   }
 
-  /**
-   * Manually confirm funding (for dev/testing without webhooks).
-   */
   async manualConfirmFunding(dealId: string, buyerId: string) {
     const deal = await this.getDealById(dealId);
     if (!deal) throw new NotFoundException('Deal not found');
@@ -218,10 +194,6 @@ export class PaymentsService {
     return this.confirmFunding(dealId);
   }
 
-  /**
-   * Release funds to seller after buyer confirms receipt.
-   * Deducts 5% platform fee. In production, use Stripe Connect transfers.
-   */
   async releaseFunds(dealId: string, buyerId: string) {
     const deal = await this.getDealById(dealId);
     if (!deal) throw new NotFoundException('Deal not found');
@@ -230,10 +202,11 @@ export class PaymentsService {
       throw new BadRequestException('Deal must be DELIVERED before releasing funds');
     }
 
-    // In production with Stripe Connect:
-    // const transfer = await this.stripe.transfers.create({...});
-
-    await this.spacetime.call('mark_deal_completed', [dealId]);
+    const now = Date.now();
+    await this.db.execute(
+      `UPDATE deal SET status = 'COMPLETED', completed_at = $1, updated_at = $1 WHERE id = $2`,
+      [now, dealId],
+    );
 
     const [buyer, seller] = await Promise.all([
       this.getUserById(deal.buyer_id),
@@ -253,23 +226,23 @@ export class PaymentsService {
     };
   }
 
-  /**
-   * Refund buyer (used when admin resolves dispute in buyer's favor).
-   */
   async refundBuyer(dealId: string) {
     const deal = await this.getDealById(dealId);
     if (!deal) throw new NotFoundException('Deal not found');
-    const stripePaymentIntentId = unwrap(deal.stripe_payment_intent_id);
-    if (!stripePaymentIntentId) {
+    if (!deal.stripe_payment_intent_id) {
       throw new BadRequestException('No payment found for this deal');
     }
 
     const refund = await this.stripe.refunds.create({
-      payment_intent: stripePaymentIntentId,
+      payment_intent: deal.stripe_payment_intent_id,
       reason: 'fraudulent',
     });
 
-    await this.spacetime.call('mark_deal_refunded', [dealId]);
+    const now = Date.now();
+    await this.db.execute(
+      `UPDATE deal SET status = 'REFUNDED', refunded_at = $1, updated_at = $1 WHERE id = $2`,
+      [now, dealId],
+    );
 
     await this.notifications.create(
       deal.buyer_id,
@@ -290,10 +263,9 @@ export class PaymentsService {
       throw new BadRequestException('Not authorized');
     }
 
-    const stripePaymentIntentId = unwrap(deal.stripe_payment_intent_id);
-    if (!stripePaymentIntentId) return { status: 'no_payment', deal: this.toDealShape(deal) };
+    if (!deal.stripe_payment_intent_id) return { status: 'no_payment', deal: this.toDealShape(deal) };
 
-    const pi = await this.stripe.paymentIntents.retrieve(stripePaymentIntentId);
+    const pi = await this.stripe.paymentIntents.retrieve(deal.stripe_payment_intent_id);
     return {
       status: pi.status,
       amount: pi.amount / 100,

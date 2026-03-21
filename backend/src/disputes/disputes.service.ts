@@ -5,7 +5,7 @@ import {
   BadRequestException,
   ConflictException,
 } from '@nestjs/common';
-import { SpacetimeService } from '../spacetime/spacetime.service';
+import { SupabaseService } from '../supabase/supabase.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { EmailService } from '../email/email.service';
 import { PaymentsService } from '../payments/payments.service';
@@ -14,21 +14,14 @@ import { DealStatus, DisputeStatus } from '../common/enums';
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const cuid: () => string = require('cuid');
 
-const unwrap = (v: any) =>
-  v && typeof v === 'object' && 'some' in v
-    ? v.some
-    : v === null || (v && typeof v === 'object' && 'none' in v)
-    ? null
-    : v;
-
 interface DbUser {
   id: string;
   email: string;
   name: string;
   password: string;
   role: string;
-  created_at: number;
-  updated_at: number;
+  created_at: string;
+  updated_at: string;
 }
 
 interface DbDeal {
@@ -40,17 +33,17 @@ interface DbDeal {
   net_amount: number;
   currency: string;
   status: string;
-  deadline: number;
+  deadline: string;
   buyer_id: string;
   seller_id: string;
   stripe_payment_intent_id: string | null;
   stripe_transfer_id: string | null;
   delivery_note: string | null;
-  delivered_at: number | null;
-  completed_at: number | null;
-  refunded_at: number | null;
-  created_at: number;
-  updated_at: number;
+  delivered_at: string | null;
+  completed_at: string | null;
+  refunded_at: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 interface DbDispute {
@@ -61,45 +54,38 @@ interface DbDispute {
   evidence: string | null;
   status: string;
   resolution: string | null;
-  resolved_at: number | null;
-  created_at: number;
+  resolved_at: string | null;
+  created_at: string;
 }
 
 @Injectable()
 export class DisputesService {
   constructor(
-    private spacetime: SpacetimeService,
+    private db: SupabaseService,
     private notifications: NotificationsService,
     private email: EmailService,
     private payments: PaymentsService,
   ) {}
 
-  private esc(v: string) {
-    return v.replace(/'/g, "''");
-  }
-
   private async getDealById(id: string): Promise<DbDeal | null> {
-    return this.spacetime.sqlOne<DbDeal>(`SELECT * FROM deal WHERE id = '${this.esc(id)}'`);
+    return this.db.queryOne<DbDeal>(`SELECT * FROM deal WHERE id = $1`, [id]);
   }
 
   private async getUserById(id: string): Promise<DbUser | null> {
-    return this.spacetime.sqlOne<DbUser>(`SELECT * FROM user WHERE id = '${this.esc(id)}'`);
+    return this.db.queryOne<DbUser>(`SELECT * FROM "user" WHERE id = $1`, [id]);
   }
 
   private toDisputeShape(d: DbDispute, deal?: unknown, raisedBy?: DbUser | null) {
-    const resolvedAt = unwrap(d.resolved_at);
-    const evidence = unwrap(d.evidence);
-    const resolution = unwrap(d.resolution);
     const result: Record<string, unknown> = {
       id: d.id,
       dealId: d.deal_id,
       raisedById: d.raised_by_id,
       reason: d.reason,
-      evidence,
+      evidence: d.evidence,
       status: d.status,
-      resolution,
-      resolvedAt: resolvedAt ? new Date(resolvedAt) : null,
-      createdAt: new Date(d.created_at),
+      resolution: d.resolution,
+      resolvedAt: d.resolved_at ? new Date(Number(d.resolved_at)) : null,
+      createdAt: new Date(Number(d.created_at)),
     };
     if (deal !== undefined) result.deal = deal;
     if (raisedBy !== undefined) {
@@ -121,8 +107,8 @@ export class DisputesService {
       status: deal.status,
       buyerId: deal.buyer_id,
       sellerId: deal.seller_id,
-      stripePaymentIntentId: unwrap(deal.stripe_payment_intent_id),
-      createdAt: new Date(deal.created_at),
+      stripePaymentIntentId: deal.stripe_payment_intent_id,
+      createdAt: new Date(Number(deal.created_at)),
       buyer: buyer ? { id: buyer.id, name: buyer.name, email: buyer.email } : null,
       seller: seller ? { id: seller.id, name: seller.name, email: seller.email } : null,
     };
@@ -138,18 +124,31 @@ export class DisputesService {
       throw new BadRequestException('Can only raise dispute on FUNDED or DELIVERED deals');
     }
 
-    const existing = await this.spacetime.sqlOne<DbDispute>(
-      `SELECT * FROM dispute WHERE deal_id = '${this.esc(dealId)}'`,
+    const existing = await this.db.queryOne<DbDispute>(
+      `SELECT * FROM dispute WHERE deal_id = $1`,
+      [dealId],
     );
     if (existing) throw new ConflictException('A dispute already exists for this deal');
 
     const disputeId = cuid();
+    const now = Date.now();
+
     await Promise.all([
-      this.spacetime.call('create_dispute', [disputeId, dealId, userId, dto.reason, dto.evidence ? { some: dto.evidence } : { none: [] }]),
-      this.spacetime.call('update_deal_status', [dealId, DealStatus.DISPUTED]),
+      this.db.execute(
+        `INSERT INTO dispute (id, deal_id, raised_by_id, reason, evidence, status, created_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [disputeId, dealId, userId, dto.reason, dto.evidence ?? null, 'OPEN', now],
+      ),
+      this.db.execute(
+        `UPDATE deal SET status = $1, updated_at = $2 WHERE id = $3`,
+        [DealStatus.DISPUTED, now, dealId],
+      ),
     ]);
 
-    const dispute = await this.spacetime.sqlOne<DbDispute>(`SELECT * FROM dispute WHERE id = '${this.esc(disputeId)}'`);
+    const dispute = await this.db.queryOne<DbDispute>(
+      `SELECT * FROM dispute WHERE id = $1`,
+      [disputeId],
+    );
     const [buyer, seller, raisedBy] = await Promise.all([
       this.getUserById(deal.buyer_id),
       this.getUserById(deal.seller_id),
@@ -172,10 +171,11 @@ export class DisputesService {
   }
 
   async findAll() {
-    const allDisputes = await this.spacetime.sql<DbDispute>('SELECT * FROM dispute');
-    const disputes = allDisputes.sort((a, b) => b.created_at - a.created_at);
-    const allDeals = await this.spacetime.sql<DbDeal>('SELECT * FROM deal');
-    const allUsers = await this.spacetime.sql<DbUser>('SELECT * FROM user');
+    const disputes = await this.db.query<DbDispute>(
+      `SELECT * FROM dispute ORDER BY created_at DESC`,
+    );
+    const allDeals = await this.db.query<DbDeal>(`SELECT * FROM deal`);
+    const allUsers = await this.db.query<DbUser>(`SELECT * FROM "user"`);
     const dealMap = new Map(allDeals.map((d) => [d.id, d]));
     const userMap = new Map(allUsers.map((u) => [u.id, u]));
 
@@ -190,8 +190,9 @@ export class DisputesService {
   }
 
   async findOne(id: string) {
-    const dispute = await this.spacetime.sqlOne<DbDispute>(
-      `SELECT * FROM dispute WHERE id = '${this.esc(id)}'`,
+    const dispute = await this.db.queryOne<DbDispute>(
+      `SELECT * FROM dispute WHERE id = $1`,
+      [id],
     );
     if (!dispute) throw new NotFoundException('Dispute not found');
 
@@ -205,17 +206,22 @@ export class DisputesService {
   }
 
   async updateStatus(id: string, status: DisputeStatus) {
-    const dispute = await this.spacetime.sqlOne<DbDispute>(
-      `SELECT * FROM dispute WHERE id = '${this.esc(id)}'`,
+    const dispute = await this.db.queryOne<DbDispute>(
+      `SELECT * FROM dispute WHERE id = $1`,
+      [id],
     );
     if (!dispute) throw new NotFoundException('Dispute not found');
-    await this.spacetime.call('update_dispute_status', [id, status]);
-    return this.spacetime.sqlOne<DbDispute>(`SELECT * FROM dispute WHERE id = '${this.esc(id)}'`);
+    await this.db.execute(
+      `UPDATE dispute SET status = $1 WHERE id = $2`,
+      [status, id],
+    );
+    return this.db.queryOne<DbDispute>(`SELECT * FROM dispute WHERE id = $1`, [id]);
   }
 
   async resolve(id: string, dto: ResolveDisputeDto) {
-    const dispute = await this.spacetime.sqlOne<DbDispute>(
-      `SELECT * FROM dispute WHERE id = '${this.esc(id)}'`,
+    const dispute = await this.db.queryOne<DbDispute>(
+      `SELECT * FROM dispute WHERE id = $1`,
+      [id],
     );
     if (!dispute) throw new NotFoundException('Dispute not found');
     if (
@@ -232,7 +238,11 @@ export class DisputesService {
       this.getUserById(deal.seller_id),
     ]);
 
-    await this.spacetime.call('resolve_dispute', [id, dto.resolution, dto.resolutionNote ?? '']);
+    const now = Date.now();
+    await this.db.execute(
+      `UPDATE dispute SET status = $1, resolution = $2, resolved_at = $3 WHERE id = $4`,
+      [dto.resolution, dto.resolutionNote ?? '', now, id],
+    );
 
     const dealShape = this.toDealShape(deal, buyer, seller);
 
@@ -243,7 +253,10 @@ export class DisputesService {
         this.notifications.create(deal.seller_id, deal.id, 'DISPUTE_RESOLVED', 'Dispute Resolved', `The dispute for "${deal.title}" was resolved in favor of the buyer. ${dto.resolutionNote}`),
       ]);
     } else {
-      await this.spacetime.call('mark_deal_completed', [deal.id]);
+      await this.db.execute(
+        `UPDATE deal SET status = 'COMPLETED', completed_at = $1, updated_at = $1 WHERE id = $2`,
+        [now, deal.id],
+      );
       await Promise.all([
         this.notifications.create(deal.seller_id, deal.id, 'DISPUTE_RESOLVED', 'Dispute Resolved — Funds Released', `The dispute for "${deal.title}" was resolved in your favor. Funds will be transferred shortly.`),
         this.notifications.create(deal.buyer_id, deal.id, 'DISPUTE_RESOLVED', 'Dispute Resolved', `The dispute for "${deal.title}" was resolved in favor of the seller. ${dto.resolutionNote}`),
@@ -258,8 +271,9 @@ export class DisputesService {
       dto.resolutionNote,
     );
 
-    const updated = await this.spacetime.sqlOne<DbDispute>(
-      `SELECT * FROM dispute WHERE id = '${this.esc(id)}'`,
+    const updated = await this.db.queryOne<DbDispute>(
+      `SELECT * FROM dispute WHERE id = $1`,
+      [id],
     );
     return this.toDisputeShape(updated!, dealShape, null);
   }

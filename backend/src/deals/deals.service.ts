@@ -4,7 +4,7 @@ import {
   ForbiddenException,
   BadRequestException,
 } from '@nestjs/common';
-import { SpacetimeService } from '../spacetime/spacetime.service';
+import { SupabaseService } from '../supabase/supabase.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { EmailService } from '../email/email.service';
 import { CreateDealDto } from './dto/create-deal.dto';
@@ -15,26 +15,14 @@ const cuid: () => string = require('cuid');
 
 const FEE_PERCENT = parseFloat(process.env.ESCROW_FEE_PERCENT || '5') / 100;
 
-// Recursive — {some: {String: "url"}} sin recursión queda como {String: "url"}
-const unwrap = (v: any): any => {
-  if (v === null || v === undefined) return null;
-  if (typeof v !== 'object') return v;
-  if ('none' in v) return null;
-  if ('some' in v) return unwrap(v.some);
-  const bsatnKeys = ['String','Bool','I8','I16','I32','I64','U8','U16','U32','U64','F32','F64'];
-  const keys = Object.keys(v);
-  if (keys.length === 1 && bsatnKeys.includes(keys[0])) return v[keys[0]];
-  return v;
-};
-
 interface DbUser {
   id: string;
   email: string;
   name: string;
   password: string;
   role: string;
-  created_at: number;
-  updated_at: number;
+  created_at: string;
+  updated_at: string;
 }
 
 interface DbDeal {
@@ -46,18 +34,18 @@ interface DbDeal {
   net_amount: number;
   currency: string;
   status: string;
-  deadline: number;
+  deadline: string;
   buyer_id: string;
   seller_id: string;
   stripe_payment_intent_id: string | null;
   stripe_transfer_id: string | null;
   delivery_note: string | null;
-  delivered_at: number | null;
-  completed_at: number | null;
-  refunded_at: number | null;
-  product_url: string | null; // URL del producto para modo "Compra Gestionada"
-  created_at: number;
-  updated_at: number;
+  delivered_at: string | null;
+  completed_at: string | null;
+  refunded_at: string | null;
+  product_url: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 interface DbDispute {
@@ -68,14 +56,14 @@ interface DbDispute {
   evidence: string | null;
   status: string;
   resolution: string | null;
-  resolved_at: number | null;
-  created_at: number;
+  resolved_at: string | null;
+  created_at: string;
 }
 
 @Injectable()
 export class DealsService {
   constructor(
-    private spacetime: SpacetimeService,
+    private db: SupabaseService,
     private notifications: NotificationsService,
     private email: EmailService,
   ) {}
@@ -86,30 +74,15 @@ export class DealsService {
     return { feeAmount, netAmount };
   }
 
-  private esc(value: string) {
-    return value.replace(/'/g, "''");
-  }
-
-  // Convierte un timestamp que puede llegar como number o string a Date de forma segura
-  private tsToDate(raw: unknown): Date | null {
+  // pg returns BIGINT as string — convert to Date safely
+  private tsToDate(raw: string | null): Date | null {
     if (raw === null || raw === undefined) return null;
-    // SpacetimeDB puede serializar I64 como string en JSON para evitar pérdida de precisión
-    const ms = typeof raw === 'string' ? Number(raw) : (raw as number);
+    const ms = Number(raw);
     if (!ms || isNaN(ms)) return null;
     return new Date(ms);
   }
 
   private toDeal(deal: DbDeal, buyer?: DbUser | null, seller?: DbUser | null, dispute?: DbDispute | null) {
-    const deliveredAt = unwrap(deal.delivered_at);
-    const completedAt = unwrap(deal.completed_at);
-    const refundedAt = unwrap(deal.refunded_at);
-    const deliveryNote = unwrap(deal.delivery_note);
-    const stripePaymentIntentId = unwrap(deal.stripe_payment_intent_id);
-    // unwrap aplicado a timestamps para manejar {some: {I64: "1700000000000"}} → Date válida
-    const deadlineRaw = unwrap(deal.deadline);
-    const createdRaw  = unwrap(deal.created_at);
-    const updatedRaw  = unwrap(deal.updated_at);
-
     const result: Record<string, unknown> = {
       id: deal.id,
       title: deal.title,
@@ -119,17 +92,17 @@ export class DealsService {
       netAmount: deal.net_amount,
       currency: deal.currency,
       status: deal.status,
-      deadline: this.tsToDate(deadlineRaw) ?? new Date(0),
+      deadline: this.tsToDate(deal.deadline) ?? new Date(0),
       buyerId: deal.buyer_id,
       sellerId: deal.seller_id,
-      stripePaymentIntentId,
-      deliveryNote,
-      deliveredAt: this.tsToDate(deliveredAt),
-      completedAt: this.tsToDate(completedAt),
-      refundedAt: this.tsToDate(refundedAt),
-      productUrl: unwrap(deal.product_url) ?? null, // URL del producto para Compra Gestionada
-      createdAt: this.tsToDate(createdRaw) ?? new Date(0),
-      updatedAt: this.tsToDate(updatedRaw) ?? new Date(0),
+      stripePaymentIntentId: deal.stripe_payment_intent_id,
+      deliveryNote: deal.delivery_note,
+      deliveredAt: this.tsToDate(deal.delivered_at),
+      completedAt: this.tsToDate(deal.completed_at),
+      refundedAt: this.tsToDate(deal.refunded_at),
+      productUrl: deal.product_url,
+      createdAt: this.tsToDate(deal.created_at) ?? new Date(0),
+      updatedAt: this.tsToDate(deal.updated_at) ?? new Date(0),
     };
     if (buyer !== undefined) {
       result.buyer = buyer ? { id: buyer.id, name: buyer.name, email: buyer.email } : null;
@@ -138,9 +111,6 @@ export class DealsService {
       result.seller = seller ? { id: seller.id, name: seller.name, email: seller.email } : null;
     }
     if (dispute !== undefined) {
-      const resolvedAt = unwrap(dispute?.resolved_at);
-      const evidence = unwrap(dispute?.evidence);
-      const resolution = unwrap(dispute?.resolution);
       if (dispute) {
         const raisedByUser =
           dispute.raised_by_id === deal.buyer_id ? buyer : seller;
@@ -152,11 +122,11 @@ export class DealsService {
             ? { id: raisedByUser.id, name: raisedByUser.name, email: raisedByUser.email }
             : null,
           reason: dispute.reason,
-          evidence,
+          evidence: dispute.evidence,
           status: dispute.status,
-          resolution,
-          resolvedAt: resolvedAt ? new Date(resolvedAt) : null,
-          createdAt: new Date(dispute.created_at),
+          resolution: dispute.resolution,
+          resolvedAt: this.tsToDate(dispute.resolved_at),
+          createdAt: new Date(Number(dispute.created_at)),
         };
       } else {
         result.dispute = null;
@@ -166,19 +136,19 @@ export class DealsService {
   }
 
   private async getUserById(id: string): Promise<DbUser | null> {
-    return this.spacetime.sqlOne<DbUser>(`SELECT * FROM user WHERE id = '${this.esc(id)}'`);
+    return this.db.queryOne<DbUser>(`SELECT * FROM "user" WHERE id = $1`, [id]);
   }
 
   private async getUserByEmail(email: string): Promise<DbUser | null> {
-    return this.spacetime.sqlOne<DbUser>(`SELECT * FROM user WHERE email = '${this.esc(email)}'`);
+    return this.db.queryOne<DbUser>(`SELECT * FROM "user" WHERE email = $1`, [email]);
   }
 
   private async getDealById(id: string): Promise<DbDeal | null> {
-    return this.spacetime.sqlOne<DbDeal>(`SELECT * FROM deal WHERE id = '${this.esc(id)}'`);
+    return this.db.queryOne<DbDeal>(`SELECT * FROM deal WHERE id = $1`, [id]);
   }
 
   private async getDisputeByDealId(dealId: string): Promise<DbDispute | null> {
-    return this.spacetime.sqlOne<DbDispute>(`SELECT * FROM dispute WHERE deal_id = '${this.esc(dealId)}'`);
+    return this.db.queryOne<DbDispute>(`SELECT * FROM dispute WHERE deal_id = $1`, [dealId]);
   }
 
   async create(buyerId: string, dto: CreateDealDto) {
@@ -189,36 +159,26 @@ export class DealsService {
     const { feeAmount, netAmount } = this.calcFees(dto.amount);
     const id = cuid();
     const deadline = new Date(dto.deadline).getTime();
+    const now = Date.now();
 
-    // Último arg: productUrl nullable — enviar como {some: url} o {none: []} para SpacetimeDB
-    const productUrlArg = dto.productUrl ? { some: dto.productUrl } : { none: [] };
-    await this.spacetime.call('create_deal', [
-      id,
-      dto.title,
-      dto.description,
-      dto.amount,
-      feeAmount,
-      netAmount,
-      'pen', // Moneda cambiada de USD a PEN (soles peruanos)
-      DealStatus.PENDING,
-      deadline,
-      buyerId,
-      seller.id,
-      productUrlArg,
-    ]);
+    await this.db.execute(
+      `INSERT INTO deal (id, title, description, amount, fee_amount, net_amount, currency, status, deadline, buyer_id, seller_id, product_url, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
+      [id, dto.title, dto.description, dto.amount, feeAmount, netAmount, 'pen', DealStatus.PENDING, deadline, buyerId, seller.id, dto.productUrl ?? null, now, now],
+    );
 
     const buyer = await this.getUserById(buyerId);
 
-    // Build deal shape directly — avoid read-after-write race with SpacetimeDB
+    // Build deal shape directly to return immediately
     const dealShape: DbDeal = {
       id, title: dto.title, description: dto.description,
       amount: dto.amount, fee_amount: feeAmount, net_amount: netAmount,
-      currency: 'pen', status: DealStatus.PENDING, deadline,
+      currency: 'pen', status: DealStatus.PENDING, deadline: String(deadline),
       buyer_id: buyerId, seller_id: seller.id,
       stripe_payment_intent_id: null, stripe_transfer_id: null,
       delivery_note: null, delivered_at: null, completed_at: null, refunded_at: null,
-      product_url: dto.productUrl ?? null, // URL del producto para Compra Gestionada
-      created_at: Date.now(), updated_at: Date.now(),
+      product_url: dto.productUrl ?? null,
+      created_at: String(now), updated_at: String(now),
     };
 
     await Promise.all([
@@ -235,14 +195,10 @@ export class DealsService {
   }
 
   async findAll(userId: string) {
-    // Sin catch silencioso — los errores deben propagarse para que el frontend
-    // muestre un estado de error con opción de reintento, en lugar de lista vacía
-    const escapedId = this.esc(userId);
-    const deals = (
-      await this.spacetime.sql<DbDeal>(
-        `SELECT * FROM deal WHERE buyer_id = '${escapedId}' OR seller_id = '${escapedId}'`,
-      )
-    ).sort((a, b) => b.created_at - a.created_at);
+    const deals = await this.db.query<DbDeal>(
+      `SELECT * FROM deal WHERE buyer_id = $1 OR seller_id = $1 ORDER BY created_at DESC`,
+      [userId],
+    );
 
     const involvedIds = [...new Set([
       ...deals.map((d) => d.buyer_id),
@@ -250,22 +206,32 @@ export class DealsService {
     ])];
     let userMap = new Map<string, DbUser>();
     if (involvedIds.length > 0) {
-      const idConditions = involvedIds.map((id) => `id = '${this.esc(id)}'`).join(' OR ');
-      const users = await this.spacetime.sql<DbUser>(`SELECT * FROM user WHERE ${idConditions}`);
+      const users = await this.db.query<DbUser>(
+        `SELECT * FROM "user" WHERE id = ANY($1)`,
+        [involvedIds],
+      );
       userMap = new Map(users.map((u) => [u.id, u]));
     }
 
-    return Promise.all(
-      deals.map(async (deal) => {
-        const dispute = await this.getDisputeByDealId(deal.id);
-        return this.toDeal(
-          deal,
-          userMap.get(deal.buyer_id) ?? null,
-          userMap.get(deal.seller_id) ?? null,
-          dispute,
-        );
-      }),
-    );
+    // Batch-fetch disputes instead of N+1 queries
+    const dealIds = deals.map((d) => d.id);
+    let disputeMap = new Map<string, DbDispute>();
+    if (dealIds.length > 0) {
+      const disputes = await this.db.query<DbDispute>(
+        `SELECT * FROM dispute WHERE deal_id = ANY($1)`,
+        [dealIds],
+      );
+      disputeMap = new Map(disputes.map((d) => [d.deal_id, d]));
+    }
+
+    return deals.map((deal) => {
+      return this.toDeal(
+        deal,
+        userMap.get(deal.buyer_id) ?? null,
+        userMap.get(deal.seller_id) ?? null,
+        disputeMap.get(deal.id) ?? null,
+      );
+    });
   }
 
   async findOne(id: string, userId: string) {
@@ -305,7 +271,11 @@ export class DealsService {
       throw new BadRequestException(`Deal must be FUNDED to mark as delivered. Current status: ${deal.status}`);
     }
 
-    await this.spacetime.call('mark_deal_delivered', [id, dto.deliveryNote ?? '']);
+    const now = Date.now();
+    await this.db.execute(
+      `UPDATE deal SET status = 'DELIVERED', delivery_note = $1, delivered_at = $2, updated_at = $2 WHERE id = $3`,
+      [dto.deliveryNote ?? '', now, id],
+    );
 
     const updated = await this.getDealById(id);
     const [buyer, seller] = await Promise.all([
@@ -333,15 +303,20 @@ export class DealsService {
       throw new BadRequestException(`Deal must be DELIVERED to confirm receipt. Current status: ${deal.status}`);
     }
 
-    // Verificar que existen evidencias antes de completar — requisito obligatorio
-    const evidences = await this.spacetime.sql<{ id: string }>(
-      `SELECT id FROM evidence WHERE deal_id = '${this.esc(id)}'`,
+    // Verify evidence exists before completing
+    const evidences = await this.db.query<{ id: string }>(
+      `SELECT id FROM evidence WHERE deal_id = $1`,
+      [id],
     );
     if (evidences.length === 0) {
       throw new BadRequestException('Se requiere al menos una evidencia antes de completar el trato. Sube fotos o documentos del producto/servicio.');
     }
 
-    await this.spacetime.call('mark_deal_completed', [id]);
+    const now = Date.now();
+    await this.db.execute(
+      `UPDATE deal SET status = 'COMPLETED', completed_at = $1, updated_at = $1 WHERE id = $2`,
+      [now, id],
+    );
 
     const updated = await this.getDealById(id);
     const [buyer, seller] = await Promise.all([
@@ -370,20 +345,28 @@ export class DealsService {
       throw new BadRequestException('Only PENDING deals can be cancelled. Funded deals require a dispute.');
     }
 
-    await this.spacetime.call('cancel_deal', [id]);
+    const now = Date.now();
+    await this.db.execute(
+      `UPDATE deal SET status = 'CANCELLED', updated_at = $1 WHERE id = $2`,
+      [now, id],
+    );
     const updated = await this.getDealById(id);
     if (!updated) throw new NotFoundException('Deal not found after cancellation');
     return this.toDeal(updated);
   }
 
-  // Admin mueve deal a AWAITING_APPROVAL después de inspeccionar el producto y subir evidencias
+  // Admin moves deal to AWAITING_APPROVAL after inspecting product and uploading evidence
   async setAwaitingApproval(id: string) {
     const deal = await this.getDealById(id);
     if (!deal) throw new NotFoundException('Deal not found');
     if (deal.status !== DealStatus.FUNDED) {
       throw new BadRequestException(`El trato debe estar en estado FUNDED. Estado actual: ${deal.status}`);
     }
-    await this.spacetime.call('update_deal_status', [id, DealStatus.AWAITING_APPROVAL]);
+    const now = Date.now();
+    await this.db.execute(
+      `UPDATE deal SET status = $1, updated_at = $2 WHERE id = $3`,
+      [DealStatus.AWAITING_APPROVAL, now, id],
+    );
     await this.notifications.create(
       deal.buyer_id, id, 'DEAL_AWAITING_APPROVAL',
       'Revisión Requerida',
@@ -393,7 +376,7 @@ export class DealsService {
     return this.toDeal(updated!);
   }
 
-  // Comprador aprueba evidencias de la plataforma → el trato continúa (vuelve a FUNDED)
+  // Buyer approves platform evidence → deal continues (back to FUNDED)
   async approveService(id: string, buyerId: string) {
     const deal = await this.getDealById(id);
     if (!deal) throw new NotFoundException('Deal not found');
@@ -401,8 +384,11 @@ export class DealsService {
     if (deal.status !== DealStatus.AWAITING_APPROVAL) {
       throw new BadRequestException(`El trato debe estar en estado AWAITING_APPROVAL. Estado actual: ${deal.status}`);
     }
-    // Volver a FUNDED para que el vendedor/plataforma pueda proceder con la entrega
-    await this.spacetime.call('update_deal_status', [id, DealStatus.FUNDED]);
+    const now = Date.now();
+    await this.db.execute(
+      `UPDATE deal SET status = $1, updated_at = $2 WHERE id = $3`,
+      [DealStatus.FUNDED, now, id],
+    );
     await this.notifications.create(
       deal.seller_id, id, 'DEAL_APPROVED',
       'Comprador Aprobó',
@@ -413,8 +399,9 @@ export class DealsService {
   }
 
   async getAllAdmin() {
-    const deals = (await this.spacetime.sql<DbDeal>('SELECT * FROM deal'))
-      .sort((a, b) => b.created_at - a.created_at);
+    const deals = await this.db.query<DbDeal>(
+      `SELECT * FROM deal ORDER BY created_at DESC`,
+    );
 
     const involvedIds = [...new Set([
       ...deals.map((d) => d.buyer_id),
@@ -422,21 +409,31 @@ export class DealsService {
     ])];
     let userMap = new Map<string, DbUser>();
     if (involvedIds.length > 0) {
-      const idConditions = involvedIds.map((id) => `id = '${this.esc(id)}'`).join(' OR ');
-      const users = await this.spacetime.sql<DbUser>(`SELECT * FROM user WHERE ${idConditions}`);
+      const users = await this.db.query<DbUser>(
+        `SELECT * FROM "user" WHERE id = ANY($1)`,
+        [involvedIds],
+      );
       userMap = new Map(users.map((u) => [u.id, u]));
     }
 
-    return Promise.all(
-      deals.map(async (deal) => {
-        const dispute = await this.getDisputeByDealId(deal.id);
-        return this.toDeal(
-          deal,
-          userMap.get(deal.buyer_id) ?? null,
-          userMap.get(deal.seller_id) ?? null,
-          dispute,
-        );
-      }),
-    );
+    // Batch-fetch all disputes instead of N+1
+    const dealIds = deals.map((d) => d.id);
+    let disputeMap = new Map<string, DbDispute>();
+    if (dealIds.length > 0) {
+      const disputes = await this.db.query<DbDispute>(
+        `SELECT * FROM dispute WHERE deal_id = ANY($1)`,
+        [dealIds],
+      );
+      disputeMap = new Map(disputes.map((d) => [d.deal_id, d]));
+    }
+
+    return deals.map((deal) => {
+      return this.toDeal(
+        deal,
+        userMap.get(deal.buyer_id) ?? null,
+        userMap.get(deal.seller_id) ?? null,
+        disputeMap.get(deal.id) ?? null,
+      );
+    });
   }
 }

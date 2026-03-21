@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
-import { SpacetimeService } from '../spacetime/spacetime.service';
+import { SupabaseService } from '../supabase/supabase.service';
 import { CreateEvidenceDto } from './dto/create-evidence.dto';
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const cuid: () => string = require('cuid');
@@ -10,7 +10,7 @@ interface DbEvidence {
   uploaded_by_id: string;
   url: string;
   description: string;
-  created_at: number;
+  created_at: string;
 }
 
 interface DbDeal {
@@ -22,7 +22,7 @@ interface DbDeal {
 
 @Injectable()
 export class EvidenceService {
-  constructor(private spacetime: SpacetimeService) {}
+  constructor(private db: SupabaseService) {}
 
   private toEvidence(e: DbEvidence) {
     return {
@@ -31,14 +31,14 @@ export class EvidenceService {
       uploadedById: e.uploaded_by_id,
       url: e.url,
       description: e.description,
-      createdAt: new Date(e.created_at),
+      createdAt: new Date(Number(e.created_at)),
     };
   }
 
-  // Sube evidencia para un deal; participantes del deal o admins pueden subir
   async create(dealId: string, uploadedById: string, dto: CreateEvidenceDto, userRole: string) {
-    const deal = await this.spacetime.sqlOne<DbDeal>(
-      `SELECT * FROM deal WHERE id = '${dealId.replace(/'/g, "''")}'`,
+    const deal = await this.db.queryOne<DbDeal>(
+      `SELECT id, buyer_id, seller_id, status FROM deal WHERE id = $1`,
+      [dealId],
     );
     if (!deal) throw new NotFoundException('Deal not found');
 
@@ -48,17 +48,23 @@ export class EvidenceService {
     }
 
     const id = cuid();
-    await this.spacetime.call('create_evidence', [id, dealId, uploadedById, dto.url, dto.description]);
+    const now = Date.now();
+    await this.db.execute(
+      `INSERT INTO evidence (id, deal_id, uploaded_by_id, url, description, created_at)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [id, dealId, uploadedById, dto.url, dto.description, now],
+    );
     return { id, dealId, uploadedById, url: dto.url, description: dto.description, createdAt: new Date() };
   }
 
-  // Lista todas las evidencias de un deal ordenadas por fecha descendente
+  // Use ORDER BY in SQL instead of sorting in JS
   async findForDeal(dealId: string) {
     try {
-      const rows = await this.spacetime.sql<DbEvidence>(
-        `SELECT * FROM evidence WHERE deal_id = '${dealId.replace(/'/g, "''")}'`,
+      const rows = await this.db.query<DbEvidence>(
+        `SELECT * FROM evidence WHERE deal_id = $1 ORDER BY created_at DESC`,
+        [dealId],
       );
-      return rows.sort((a, b) => b.created_at - a.created_at).map(this.toEvidence);
+      return rows.map(this.toEvidence);
     } catch {
       return [];
     }
